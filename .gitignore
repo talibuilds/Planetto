@@ -39,3 +39,8 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# temporary recording files
+*.gif
+assets/frame_*.png
+
