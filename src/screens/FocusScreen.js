@@ -4,9 +4,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Circle } from 'react-native-svg';
+import { Audio } from 'expo-av';
 
 import { FONTS, SIZES } from '../constants/theme';
 import { useTheme } from '../context/ThemeContext';
+import { useData } from '../context/DataContext';
 import Header from '../components/Header';
 import GlassCard from '../components/GlassCard';
 
@@ -23,25 +25,52 @@ const SOUNDS = [
 ];
 
 const ATMOSPHERES = [
-  { id: 'void', label: 'Andromeda Void', darkLabel: 'Cosmic Void', icon: 'star' },
-  { id: 'study', label: 'Bright Study Room', darkLabel: 'Night Library', icon: 'book' },
-  { id: 'office', label: 'Morning Office', darkLabel: 'Dark Office', icon: 'building' },
-  { id: 'zen', label: 'Zen Garden', darkLabel: 'Zen Garden', icon: 'leaf' },
+  { id: 'void', label: 'Andromeda Void', darkLabel: 'Cosmic Void', icon: 'star', bgDark: '#0B120E', bgLight: '#F8F9F5' },
+  { id: 'study', label: 'Bright Study Room', darkLabel: 'Night Library', icon: 'book', bgDark: '#1E1B18', bgLight: '#FFF4E6' },
+  { id: 'office', label: 'Morning Office', darkLabel: 'Dark Office', icon: 'building', bgDark: '#121C26', bgLight: '#E6F0FA' },
+  { id: 'zen', label: 'Zen Garden', darkLabel: 'Zen Garden', icon: 'leaf', bgDark: '#0D2214', bgLight: '#E8F5E9' },
 ];
 
 const FocusScreen = () => {
   const { colors, isDarkMode } = useTheme();
+  const { tasks, stats, logFocusSession, toggleTaskCompletion, toggleFocusQueue } = useData();
   const [timeLeft, setTimeLeft] = useState(FOCUS_DURATION);
   const [isActive, setIsActive] = useState(false);
   const [isOnBreak, setIsOnBreak] = useState(false);
   const [breakTimeLeft, setBreakTimeLeft] = useState(BREAK_DURATION);
   const [isNotificationsBlocked, setIsNotificationsBlocked] = useState(true);
-  const [selectedSound, setSelectedSound] = useState('space');
+  const [selectedSound, setSelectedSound] = useState(null);
   const [selectedAtmosphere, setSelectedAtmosphere] = useState('void');
-  const [sessionCount, setSessionCount] = useState(4);
-  const [xp, setXp] = useState(120);
+  const [pauses, setPauses] = useState(0);
+  const [soundObject, setSoundObject] = useState(null);
+  
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const pulseAnimRef = useRef(null);
+
+  const focusTasks = tasks.filter(t => t.inFocusQueue && !t.completed);
+
+  // Audio Playback
+  useEffect(() => {
+    return () => {
+      if (soundObject) soundObject.unloadAsync();
+    };
+  }, [soundObject]);
+
+  const toggleSound = async (soundId) => {
+    if (selectedSound === soundId) {
+      if (soundObject) await soundObject.stopAsync();
+      setSelectedSound(null);
+    } else {
+      if (soundObject) await soundObject.unloadAsync();
+      // Dummy remote URL, in real app use require('./assets/sounds/rain.mp3')
+      const { sound } = await Audio.Sound.createAsync(
+        { uri: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3' },
+        { shouldPlay: true, isLooping: true }
+      );
+      setSoundObject(sound);
+      setSelectedSound(soundId);
+    }
+  };
 
   // Focus timer
   useEffect(() => {
@@ -51,15 +80,30 @@ const FocusScreen = () => {
     } else if (timeLeft === 0 && !isOnBreak) {
       clearInterval(interval);
       setIsActive(false);
-      setSessionCount(s => s + 1);
-      setXp(x => x + 30);
-      Alert.alert('🎉 Session Complete!', 'Great work! You earned +30 XP. Take a break?', [
-        { text: 'Keep Going', onPress: () => { setTimeLeft(FOCUS_DURATION); setIsActive(true); } },
-        { text: 'Take a 5-min Break', onPress: startBreak },
+      logFocusSession(FOCUS_DURATION, pauses);
+      setPauses(0);
+      
+      const currentTask = focusTasks.length > 0 ? focusTasks[0] : null;
+
+      Alert.alert('🎉 Session Complete!', currentTask ? `Did you finish "${currentTask.title}"?` : 'Great work! Take a break?', [
+        { 
+          text: currentTask ? 'Yes, Mark Done' : 'Keep Going', 
+          onPress: () => { 
+            if (currentTask) toggleTaskCompletion(currentTask.id);
+            setTimeLeft(FOCUS_DURATION); 
+            setIsActive(true); 
+          } 
+        },
+        { 
+          text: currentTask ? 'No, Take Break' : 'Take a 5-min Break', 
+          onPress: () => {
+             startBreak();
+          } 
+        },
       ]);
     }
     return () => clearInterval(interval);
-  }, [isActive, timeLeft, isOnBreak]);
+  }, [isActive, timeLeft, isOnBreak, focusTasks]);
 
   // Break timer
   useEffect(() => {
@@ -130,6 +174,9 @@ const FocusScreen = () => {
       ]);
       return;
     }
+    if (isActive) {
+      setPauses(p => p + 1); // penalize quality for pauses
+    }
     setIsActive(!isActive);
   };
 
@@ -154,9 +201,12 @@ const FocusScreen = () => {
   const dashOffset = 880 - (progress * 880);
 
   const activeColor = isOnBreak ? colors.secondary : colors.primary;
+  
+  const currentAtmosphere = ATMOSPHERES.find(a => a.id === selectedAtmosphere);
+  const dynamicBackground = isDarkMode ? currentAtmosphere.bgDark : currentAtmosphere.bgLight;
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: dynamicBackground }]}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         <Header />
 
@@ -195,16 +245,8 @@ const FocusScreen = () => {
             </View>
 
             <View style={[styles.sessionsBadge, { backgroundColor: colors.surface, borderColor: colors.surfaceBorder }]}>
-              <Text style={[FONTS.h3, { color: colors.primary }]}>{sessionCount.toString().padStart(2,'0')}/08</Text>
+              <Text style={[FONTS.h3, { color: colors.primary }]}>{stats.sessionsToday.toString().padStart(2,'0')}/08</Text>
               <Text style={[FONTS.subtitle, { fontSize: 7, color: colors.textMuted, marginTop: 4 }]}>SESSIONS TODAY</Text>
-            </View>
-
-            <View style={[styles.xpBadge, { backgroundColor: colors.surface, borderColor: colors.surfaceBorder }]}>
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <FontAwesome5 name="bolt" color={colors.text} size={10} />
-                <Text style={[FONTS.h3, { fontSize: 13, marginLeft: 6, color: colors.text }]}>{xp} XP</Text>
-              </View>
-              <Text style={[FONTS.subtitle, { fontSize: 7, color: colors.textMuted, marginTop: 4 }]}>FOCUS REWARD</Text>
             </View>
           </Animated.View>
         </View>
@@ -222,7 +264,7 @@ const FocusScreen = () => {
                   borderWidth: 1,
                   borderColor: isSelected ? colors.primary : colors.surfaceBorder,
                 }]}
-                onPress={() => setSelectedSound(isSelected ? null : sound.id)}
+                onPress={() => toggleSound(sound.id)}
               >
                 <FontAwesome5 name={sound.icon} color={isSelected ? '#FFF' : colors.textMuted} size={12} />
                 <Text style={[styles.soundText, { color: isSelected ? '#FFF' : colors.textMuted }]}>{sound.label}</Text>
@@ -271,24 +313,31 @@ const FocusScreen = () => {
         <GlassCard style={styles.queueCard} padding={20}>
           <View style={styles.queueHeader}>
             <Text style={[FONTS.h2, { fontSize: 20, color: colors.text }]}>Focus Queue</Text>
-            <Text style={[FONTS.subtitle, { fontSize: 10, color: colors.textSecondary }]}>3 TASKS LEFT</Text>
+            <Text style={[FONTS.subtitle, { fontSize: 10, color: colors.textSecondary }]}>{focusTasks.length} TASKS LEFT</Text>
           </View>
-          {[
-            { icon: 'graduation-cap', title: 'Organic Chemistry Review', sub: 'Ch 4. Alkanes and Cycloalkanes', color: colors.primary },
-            { icon: 'flask', title: 'Lab Data Entry', sub: 'Thermal Dynamics experiment data', color: colors.secondary },
-            { icon: 'book', title: 'Literature Analysis', sub: 'Chapter 7 — Metaphors in Modernism', color: colors.accent },
-          ].map((item, i) => (
-            <View key={i} style={[styles.queueItem, i < 2 && { marginBottom: 15 }]}>
-              <View style={[styles.queueIcon, { backgroundColor: `${item.color}20` }]}>
-                <FontAwesome5 name={item.icon} color={item.color} size={16} />
+          
+          {focusTasks.length === 0 && (
+            <Text style={[FONTS.body2, { color: colors.textSecondary, textAlign: 'center', marginVertical: 10 }]}>No tasks in queue. Add them from Active Tasks.</Text>
+          )}
+
+          {focusTasks.map((item, i) => {
+            const isActiveTask = i === 0;
+            return (
+            <View key={item.id} style={[styles.queueItem, i < focusTasks.length - 1 && { marginBottom: 15 }, isActiveTask && { backgroundColor: `${colors.primary}15`, padding: 10, borderRadius: 12, borderWidth: 1, borderColor: colors.primary }]}>
+              <View style={[styles.queueIcon, { backgroundColor: `${item.pColor}20` }]}>
+                <FontAwesome5 name={item.priority === 'HIGH' ? 'exclamation' : 'check'} color={item.pColor} size={14} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={[FONTS.h3, { fontSize: 14, color: colors.text }]}>{item.title}</Text>
-                <Text style={[FONTS.body2, { fontSize: 11, marginTop: 3, color: colors.textSecondary }]}>{item.sub}</Text>
+                <Text style={[FONTS.h3, { fontSize: 14, color: colors.text }]} numberOfLines={1}>{item.title}</Text>
+                <Text style={[FONTS.body2, { fontSize: 11, marginTop: 3, color: isActiveTask ? colors.primary : colors.textSecondary }]} numberOfLines={1}>
+                  {isActiveTask ? "CURRENT TARGET" : item.subject}
+                </Text>
               </View>
-              <FontAwesome5 name="ellipsis-v" color={colors.textMuted} size={14} />
+              <TouchableOpacity onPress={() => toggleFocusQueue(item.id)} style={{ padding: 8 }}>
+                 <FontAwesome5 name="minus-circle" color={colors.textMuted} size={14} />
+              </TouchableOpacity>
             </View>
-          ))}
+          )})}
         </GlassCard>
 
         {/* Atmosphere Selector */}
@@ -363,7 +412,6 @@ const styles = StyleSheet.create({
   playBtn: { width: 56, height: 56, borderRadius: 28, justifyContent: 'center', alignItems: 'center', marginRight: 15, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.5, shadowRadius: 20, elevation: 10 },
   resetBtn: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center' },
   sessionsBadge: { position: 'absolute', top: 30, right: -20, padding: 15, borderRadius: 16, borderWidth: 1 },
-  xpBadge: { position: 'absolute', bottom: 50, left: -20, padding: 12, borderRadius: 16, borderWidth: 1 },
   soundBtn: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 25 },
   soundText: { ...FONTS.h3, fontSize: 12, marginLeft: 8 },
   actionRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 30, gap: 12 },

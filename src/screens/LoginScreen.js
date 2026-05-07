@@ -7,10 +7,10 @@ import { FontAwesome5 } from '@expo/vector-icons';
 import { FONTS } from '../constants/theme';
 import { useTheme } from '../context/ThemeContext';
 
-const logoFull = require('../../assets/logo_full.png');
+const logoImage = require('../../assets/logo.png');
 
 const LoginScreen = ({ navigation }) => {
-  const { colors } = useTheme();
+  const { colors, isDarkMode } = useTheme();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -115,7 +115,11 @@ const LoginScreen = ({ navigation }) => {
 
           {/* Logo */}
           <View style={styles.logoContainer}>
-            <Image source={logoFull} style={{ width: 150, height: 150 }} resizeMode="contain" />
+            <Image
+              source={logoImage}
+              style={{ width: 180, height: 180 }}
+              resizeMode="contain"
+            />
           </View>
 
           {/* Mode Tabs */}
@@ -124,20 +128,20 @@ const LoginScreen = ({ navigation }) => {
               style={[styles.modeTab, mode === 'login' && { backgroundColor: colors.primary }]}
               onPress={() => { setMode('login'); setErrors({}); }}
             >
-              <Text style={[FONTS.subtitle, { fontSize: 10, color: mode === 'login' ? '#FFF' : colors.textMuted }]}>SIGN IN</Text>
+              <Text style={[FONTS.subtitle, { fontSize: 10, color: mode === 'login' ? '#FFF' : colors.textMuted }]}>LOGIN</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.modeTab, mode === 'signup' && { backgroundColor: colors.primary }]}
               onPress={() => { setMode('signup'); setErrors({}); }}
             >
-              <Text style={[FONTS.subtitle, { fontSize: 10, color: mode === 'signup' ? '#FFF' : colors.textMuted }]}>CREATE ACCOUNT</Text>
+              <Text style={[FONTS.subtitle, { fontSize: 10, color: mode === 'signup' ? '#FFF' : colors.textMuted }]}>SIGN UP</Text>
             </TouchableOpacity>
           </View>
 
           {mode === 'login' ? (
             <>
-              <Text style={[styles.title, { color: colors.text }]}>System Access</Text>
-              <Text style={[styles.subtitle, { color: colors.textMuted }]}>Enter your credentials to synchronize.</Text>
+              <Text style={[styles.title, { color: colors.text }]}>Login</Text>
+              <Text style={[styles.subtitle, { color: colors.textMuted }]}>Enter your details to login.</Text>
 
               <InputField
                 label="EMAIL ADDRESS"
@@ -168,7 +172,7 @@ const LoginScreen = ({ navigation }) => {
                   {isLoading ? (
                     <ActivityIndicator color="#FFF" />
                   ) : (
-                    <Text style={[styles.loginBtnText, { color: '#FFFFFF' }]}>INITIALIZE LAUNCH</Text>
+                    <Text style={[styles.loginBtnText, { color: '#FFFFFF' }]}>LOGIN</Text>
                   )}
                 </LinearGradient>
               </TouchableOpacity>
@@ -179,13 +183,13 @@ const LoginScreen = ({ navigation }) => {
                 style={[styles.demoBtn, { borderColor: colors.surfaceBorder }]}
               >
                 <FontAwesome5 name="rocket" size={11} color={colors.textMuted} />
-                <Text style={[FONTS.subtitle, { color: colors.textMuted, fontSize: 9, marginLeft: 8 }]}>DEMO MODE — SKIP LOGIN</Text>
+                <Text style={[FONTS.subtitle, { color: colors.textMuted, fontSize: 9, marginLeft: 8 }]}>SKIP LOGIN</Text>
               </TouchableOpacity>
             </>
           ) : (
             <>
-              <Text style={[styles.title, { color: colors.text }]}>Join Planetto</Text>
-              <Text style={[styles.subtitle, { color: colors.textMuted }]}>Create your academic command account.</Text>
+              <Text style={[styles.title, { color: colors.text }]}>Sign Up</Text>
+              <Text style={[styles.subtitle, { color: colors.textMuted }]}>Create your account.</Text>
 
               <InputField
                 label="FULL NAME"
@@ -229,7 +233,7 @@ const LoginScreen = ({ navigation }) => {
                   {isLoading ? (
                     <ActivityIndicator color="#FFF" />
                   ) : (
-                    <Text style={[styles.loginBtnText, { color: '#FFFFFF' }]}>CREATE ACCOUNT</Text>
+                    <Text style={[styles.loginBtnText, { color: '#FFFFFF' }]}>SIGN UP</Text>
                   )}
                 </LinearGradient>
               </TouchableOpacity>

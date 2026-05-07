@@ -9,6 +9,7 @@ import { FONTS, SIZES } from '../constants/theme';
 import { useTheme } from '../context/ThemeContext';
 import Header from '../components/Header';
 import GlassCard from '../components/GlassCard';
+import AvatarInitials from '../components/AvatarInitials';
 
 const StatsScreen = ({ navigation }) => {
   const { colors, isDarkMode } = useTheme();
@@ -16,10 +17,10 @@ const StatsScreen = ({ navigation }) => {
   // Profile edit state
   const [isEditModalVisible, setEditModalVisible] = useState(false);
   const [isFeedbackModalVisible, setFeedbackModalVisible] = useState(false);
-  const [profileName, setProfileName] = useState('Alex Mercer');
-  const [profileEmail, setProfileEmail] = useState('alex@planetto.space');
-  const [editName, setEditName] = useState('Alex Mercer');
-  const [editEmail, setEditEmail] = useState('alex@planetto.space');
+  const [profileName, setProfileName] = useState('Talib Khan');
+  const [profileEmail, setProfileEmail] = useState('talib@admin.planetto.com');
+  const [editName, setEditName] = useState('Talib Khan');
+  const [editEmail, setEditEmail] = useState('talib@admin.planetto.com');
   const [editBio, setEditBio] = useState('');
   const [feedbackText, setFeedbackText] = useState('');
 
@@ -44,7 +45,14 @@ const StatsScreen = ({ navigation }) => {
         <Header />
 
         <View style={styles.profileHeader}>
-          <Image source={{ uri: 'https://randomuser.me/api/portraits/men/32.jpg' }} style={[styles.profileAvatar, { borderColor: colors.surface }]} />
+          <AvatarInitials
+            name={profileName}
+            size={80}
+            fontSize={26}
+            bgColor="#2D5A3C"
+            textColor="#FFFFFF"
+            style={{ borderWidth: 3, borderColor: colors.surface, marginRight: 20 }}
+          />
           <View style={styles.profileInfo}>
             <Text style={[FONTS.h2, { color: colors.text, fontSize: 24 }]}>{profileName}</Text>
             <Text style={[FONTS.body2, { color: colors.textSecondary }]}>{profileEmail}</Text>
@@ -171,7 +179,14 @@ const StatsScreen = ({ navigation }) => {
             </View>
 
             <View style={styles.avatarEditRow}>
-              <Image source={{ uri: 'https://randomuser.me/api/portraits/men/32.jpg' }} style={[styles.modalAvatar, { borderColor: colors.surfaceBorder }]} />
+              <AvatarInitials
+                name={editName}
+                size={70}
+                fontSize={22}
+                bgColor="#2D5A3C"
+                textColor="#FFFFFF"
+                style={{ borderWidth: 2, borderColor: colors.surfaceBorder, marginBottom: 12 }}
+              />
               <TouchableOpacity style={[styles.changePhotoBtn, { backgroundColor: `${colors.primary}22`, borderColor: colors.primary }]}>
                 <FontAwesome5 name="camera" size={12} color={colors.primary} />
                 <Text style={[FONTS.subtitle, { color: colors.primary, marginLeft: 6, fontSize: 10 }]}>CHANGE PHOTO</Text>

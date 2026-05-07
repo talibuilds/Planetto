@@ -9,9 +9,21 @@ import { FONTS, SIZES } from '../constants/theme';
 import { useTheme } from '../context/ThemeContext';
 import Header from '../components/Header';
 import GlassCard from '../components/GlassCard';
+import { useData } from '../context/DataContext';
 
 const DashboardScreen = ({ navigation }) => {
   const { colors, isDarkMode } = useTheme();
+  const { stats, tasks } = useData();
+
+  const pendingTasks = tasks.filter(t => !t.completed).slice(0, 3); // show up to 3 upcoming
+  
+  const totalTasks = tasks.length;
+  const completedTasks = tasks.filter(t => t.completed).length;
+  const orbitVelocity = totalTasks === 0 ? 0 : Math.round((completedTasks / totalTasks) * 100);
+  const orbitDashOffset = 345 - (345 * (Math.min(orbitVelocity, 100) / 100));
+  const pendingCount = totalTasks - completedTasks;
+
+  const priorityTask = tasks.find(t => t.priority === 'HIGH' && !t.completed) || tasks.find(t => !t.completed);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
@@ -20,7 +32,7 @@ const DashboardScreen = ({ navigation }) => {
 
         <View style={styles.greetingSection}>
           <Text style={[FONTS.subtitle, { color: colors.textSecondary }]}>ACADEMIC COMMAND CENTER</Text>
-          <Text style={[styles.greetingText, { color: colors.text }]}>Good morning,{'\n'}<Text style={{color: colors.primary}}>Alex.</Text></Text>
+          <Text style={[styles.greetingText, { color: colors.text }]}>Good morning,{'\n'}<Text style={{color: colors.primary}}>Talib.</Text></Text>
         </View>
 
         <GlassCard style={styles.orbitCard}>
@@ -34,18 +46,20 @@ const DashboardScreen = ({ navigation }) => {
                 strokeWidth="12" 
                 fill="none" 
                 strokeDasharray="345"
-                strokeDashoffset="86"
+                strokeDashoffset={orbitDashOffset}
                 strokeLinecap="round"
                 rotation="-90"
                 origin="70, 70"
               />
             </Svg>
             <View style={styles.orbitTextContainer}>
-              <Text style={[styles.orbitPercentage, { color: colors.text }]}>75%</Text>
+              <Text style={[styles.orbitPercentage, { color: colors.text }]}>{orbitVelocity}%</Text>
               <Text style={[styles.orbitLabel, { color: colors.text }]}>COMPLETE</Text>
             </View>
           </View>
-          <Text style={[styles.orbitSubText, { color: colors.textSecondary }]}>You're 2 tasks away from{'\n'}your daily goal.</Text>
+          <Text style={[styles.orbitSubText, { color: colors.textSecondary }]}>
+            {pendingCount === 0 ? "You've crushed all your tasks!" : `You're ${pendingCount} tasks away from\nyour daily goal.`}
+          </Text>
         </GlassCard>
 
         {/* Priority Mission */}
@@ -54,11 +68,15 @@ const DashboardScreen = ({ navigation }) => {
             <FontAwesome5 name="bolt" color={'#FFFFFF'} size={12} />
             <Text style={[FONTS.subtitle, { color: '#FFFFFF', marginLeft: 6 }]}>PRIORITY MISSION</Text>
           </View>
-          <Text style={styles.missionTitle}>Quantum{'\n'}Mechanics Final{'\n'}Review</Text>
+          <Text style={[styles.missionTitle, { fontSize: priorityTask ? 26 : 32 }]}>
+            {priorityTask ? priorityTask.title : 'All Clear!'}
+          </Text>
           
-          <TouchableOpacity style={[styles.missionBtn, { backgroundColor: isDarkMode ? colors.primary : '#FFFFFF' }]} onPress={() => navigation.navigate('Focus')}>
-            <Text style={[styles.missionBtnText, { color: isDarkMode ? colors.background : colors.primary }]}>Start Focus Session</Text>
-          </TouchableOpacity>
+          {priorityTask && (
+            <TouchableOpacity style={[styles.missionBtn, { backgroundColor: colors.accent }]} onPress={() => navigation.navigate('Focus')}>
+              <Text style={[styles.missionBtnText, { color: colors.text }]}>Start Focus Session</Text>
+            </TouchableOpacity>
+          )}
           
           <View style={styles.estimatedRow}>
             <FontAwesome5 name="clock" color="rgba(255,255,255,0.7)" size={10} />
@@ -73,7 +91,7 @@ const DashboardScreen = ({ navigation }) => {
               <FontAwesome5 name="clock" color={colors.text} size={12} />
             </View>
             <Text style={[styles.statTrend, { color: colors.primary }]}>+12%</Text>
-            <Text style={[styles.statValue, { color: colors.text }]}>6.4h</Text>
+            <Text style={[styles.statValue, { color: colors.text }]}>{stats.focusTimeToday}h</Text>
             <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Focus Time Today</Text>
           </GlassCard>
           
@@ -81,44 +99,36 @@ const DashboardScreen = ({ navigation }) => {
             <View style={[styles.statIconBadge, { backgroundColor: colors.surfaceBorder }]}>
               <FontAwesome5 name="fire" color={colors.primary} size={12} />
             </View>
-            <Text style={[styles.statNewHigh, { color: colors.textSecondary }]}>New High</Text>
-            <Text style={[styles.statValue, { color: colors.text }]}>14</Text>
+            <Text style={[styles.statNewHigh, { color: colors.textSecondary }]}>Quality: {stats.focusQuality}%</Text>
+            <Text style={[styles.statValue, { color: colors.text }]}>{stats.dayStreak}</Text>
             <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Day Streak</Text>
           </GlassCard>
         </View>
 
-        {/* Upcoming Trajectory */}
+        {/* Upcoming Deadlines */}
         <View style={styles.sectionHeaderRow}>
-          <Text style={[FONTS.h3, { color: colors.text }]}>Upcoming Trajectory</Text>
+          <Text style={[FONTS.h3, { color: colors.text }]}>Upcoming Deadlines</Text>
           <TouchableOpacity onPress={() => navigation.navigate('Tasks')}>
             <Text style={[styles.viewAllBtn, { color: colors.textMuted }]}>View All &gt;</Text>
           </TouchableOpacity>
         </View>
 
-        <TouchableOpacity onPress={() => navigation.navigate('Tasks')}>
-          <GlassCard style={styles.taskItem} padding={15}>
-            <View style={[styles.taskIndicator, {backgroundColor: colors.primary}]} />
-            <View style={styles.taskContent}>
-              <Text style={[styles.taskTitle, { color: colors.text }]}>Research Paper: Neural Networks</Text>
-              <Text style={[styles.taskMeta, { color: colors.textSecondary }]}>Due in 4 hours • Academic Hub</Text>
-            </View>
-            <View style={styles.taskUsers}>
-               <Image source={{ uri: 'https://randomuser.me/api/portraits/women/44.jpg' }} style={[styles.smallAvatar, { borderColor: colors.surface }]} />
-               <View style={[styles.extraUsers, { backgroundColor: colors.surfaceLight, borderColor: colors.surface }]}><Text style={[styles.extraUsersText, { color: colors.text }]}>+2</Text></View>
-            </View>
-          </GlassCard>
-        </TouchableOpacity>
+        {pendingTasks.length === 0 && (
+          <Text style={[FONTS.body2, { textAlign: 'center', marginVertical: 10, color: colors.textSecondary }]}>All caught up!</Text>
+        )}
 
-        <TouchableOpacity onPress={() => navigation.navigate('Tasks')}>
-          <GlassCard style={styles.taskItem} padding={15}>
-            <View style={[styles.taskIndicator, {backgroundColor: colors.accent}]} />
-            <View style={styles.taskContent}>
-              <Text style={[styles.taskTitle, { color: colors.text }]}>Advanced Algorithms Lecture</Text>
-              <Text style={[styles.taskMeta, { color: colors.textSecondary }]}>Tomorrow, 10:00 AM • Room 4B2</Text>
-            </View>
-            <FontAwesome5 name="ellipsis-v" color={colors.textMuted} size={14} />
-          </GlassCard>
-        </TouchableOpacity>
+        {pendingTasks.map(t => (
+          <TouchableOpacity key={t.id} onPress={() => navigation.navigate('Tasks')}>
+            <GlassCard style={styles.taskItem} padding={15}>
+              <View style={[styles.taskIndicator, {backgroundColor: t.pColor || colors.primary}]} />
+              <View style={styles.taskContent}>
+                <Text style={[styles.taskTitle, { color: colors.text }]} numberOfLines={1}>{t.title}</Text>
+                <Text style={[styles.taskMeta, { color: colors.textSecondary }]}>Subject: {t.subject || 'General'} • Due: {t.date}</Text>
+              </View>
+              <FontAwesome5 name="chevron-right" color={colors.textMuted} size={12} />
+            </GlassCard>
+          </TouchableOpacity>
+        ))}
 
         {/* Smart Flow Optimization */}
         {isDarkMode ? (

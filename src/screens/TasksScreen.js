@@ -9,6 +9,7 @@ import { FONTS, SIZES } from '../constants/theme';
 import { useTheme } from '../context/ThemeContext';
 import Header from '../components/Header';
 import GlassCard from '../components/GlassCard';
+import { useData } from '../context/DataContext';
 
 // Helper date functions
 const getIsoDate = (d) => d.toISOString().split('T')[0];
@@ -52,14 +53,11 @@ const deadlineOptions = buildDeadlineOptions();
 
 const TasksScreen = () => {
   const { colors, isDarkMode } = useTheme();
+  const { tasks, addTask, toggleTaskCompletion, deleteTask, toggleFocusQueue } = useData();
+  const { stats } = useData();
+  const SESSION_GOAL = 8; // daily session target
   const [selectedDate, setSelectedDate] = useState(getIsoDate(today));
   const dateScrollRef = useRef(null);
-  
-  const [tasks, setTasks] = useState([
-    { id: 't1', title: 'Quantum Physics Final Review', desc: 'Review chapters 12-18 and solve past papers.', priority: 'HIGH', pColor: colors.danger, completed: false, date: getIsoDate(today) },
-    { id: 't2', title: 'Lab Report: Thermal Dynamics', desc: 'Finalize data visualization and abstract.', priority: 'MED', pColor: colors.secondary, completed: false, date: getIsoDate(today) },
-    { id: 't3', title: 'Library Book Return', desc: 'Return "The Art of War" and "Digital Design".', priority: 'LOW', pColor: colors.primary, completed: true, date: getIsoDate(today) },
-  ]);
 
   const [isAddModalVisible, setAddModalVisible] = useState(false);
   const [isHistoryModalVisible, setHistoryModalVisible] = useState(false);
@@ -69,6 +67,7 @@ const TasksScreen = () => {
   // Form State
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [newTaskDesc, setNewTaskDesc] = useState('');
+  const [newTaskSubject, setNewTaskSubject] = useState('');
   const [newTaskPriority, setNewTaskPriority] = useState('MED');
   const [newTaskDeadline, setNewTaskDeadline] = useState(getIsoDate(today));
 
@@ -80,20 +79,16 @@ const TasksScreen = () => {
   
   const totalDateTasks = selectedTasks.length;
   const completedDateTasks = finishedTasks.length;
-  const realVelocity = totalDateTasks === 0 ? 0 : Math.round((completedDateTasks / totalDateTasks) * 100);
+
+  // VELOCITY = focus sessions completed today vs daily session goal
+  // This measures HOW FAST you are working (pace/intensity)
+  const realVelocity = Math.round((stats.sessionsToday / SESSION_GOAL) * 100);
   const ringCircumference = 345;
   const calculatedDashOffset = ringCircumference - (ringCircumference * (Math.min(realVelocity, 100) / 100));
+  // NOTE: Daily Orbit (on Dashboard) = completedTasks / totalTasks — measures WHAT you've done (breadth)
+  // Velocity (here) = sessions / session goal — measures HOW MUCH you've focused (depth/intensity)
 
-  const toggleTaskCompletion = (taskId) => {
-    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, completed: !t.completed } : t));
-  };
 
-  const deleteTask = (taskId) => {
-    Alert.alert('Delete Task', 'Are you sure you want to delete this task?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: () => setTasks(prev => prev.filter(t => t.id !== taskId)) },
-    ]);
-  };
 
   const handleAddTask = () => {
     if (!newTaskTitle.trim()) {
@@ -109,17 +104,20 @@ const TasksScreen = () => {
       id: Math.random().toString(),
       title: newTaskTitle.trim(),
       desc: newTaskDesc.trim() || 'No description provided.',
+      subject: newTaskSubject.trim() || 'General',
       priority: finalPriority,
       pColor: finalColor,
       completed: false,
-      date: finalDate, 
+      date: finalDate,
+      inFocusQueue: false,
     };
     
-    setTasks(prev => [...prev, newTask]);
+    addTask(newTask);
     
     // Reset form
     setNewTaskTitle('');
     setNewTaskDesc('');
+    setNewTaskSubject('');
     setNewTaskPriority('MED');
     setNewTaskDeadline(getIsoDate(today));
     setDeadlineDropdownOpen(false);
@@ -137,8 +135,9 @@ const TasksScreen = () => {
   const openAddModal = () => {
     setNewTaskTitle('');
     setNewTaskDesc('');
+    setNewTaskSubject('');
     setNewTaskPriority('MED');
-    setNewTaskDeadline(selectedDate); // pre-fill with currently viewed date
+    setNewTaskDeadline(selectedDate);
     setDeadlineDropdownOpen(false);
     setPriorityDropdownOpen(false);
     setAddModalVisible(true);
@@ -157,6 +156,8 @@ const TasksScreen = () => {
           <Text style={[FONTS.h3, { fontSize: 15, color: colors.text }, t.completed && { textDecorationLine: 'line-through', color: colors.textMuted }]}>{t.title}</Text>
           <Text style={[FONTS.body2, { marginTop: 4, marginBottom: 12, lineHeight: 18, color: colors.textSecondary }]}>{t.desc}</Text>
           <View style={styles.taskMetaRow}>
+            <FontAwesome5 name="bookmark" color={colors.textMuted} size={10} />
+            <Text style={[styles.taskMetaText, { color: colors.textMuted, marginRight: 10 }]}>{t.subject}</Text>
             <FontAwesome5 name="calendar-alt" color={colors.textMuted} size={10} />
             <Text style={[styles.taskMetaText, { color: colors.textMuted }]}>{t.date}</Text>
           </View>
@@ -167,7 +168,17 @@ const TasksScreen = () => {
               <Text style={[styles.priorityBadgeText, { color: t.pColor }]}>{t.priority}</Text>
             </View>
           )}
-          <TouchableOpacity onPress={() => deleteTask(t.id)} style={styles.deleteBtn}>
+          {!t.completed && (
+            <TouchableOpacity onPress={() => toggleFocusQueue(t.id)} style={styles.deleteBtn}>
+              <FontAwesome5 name="stopwatch" size={14} color={t.inFocusQueue ? colors.primary : colors.textMuted} solid={t.inFocusQueue} />
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity onPress={() => {
+            Alert.alert('Delete Task', 'Are you sure you want to delete this task?', [
+              { text: 'Cancel', style: 'cancel' },
+              { text: 'Delete', style: 'destructive', onPress: () => deleteTask(t.id) },
+            ]);
+          }} style={styles.deleteBtn}>
             <FontAwesome5 name="trash-alt" size={12} color={colors.textMuted} />
           </TouchableOpacity>
         </View>
@@ -236,17 +247,29 @@ const TasksScreen = () => {
             </Svg>
             <View style={styles.velocityCenter}>
               <Text style={[FONTS.h1, { fontSize: 32, color: colors.text }]}>{realVelocity}%</Text>
-              <Text style={[FONTS.subtitle, { fontSize: 8, marginTop: 2, color: colors.textSecondary }]}>DAY FLOW</Text>
+              <Text style={[FONTS.subtitle, { fontSize: 8, marginTop: 2, color: colors.textSecondary }]}>VELOCITY</Text>
             </View>
           </View>
-          <Text style={[FONTS.h3, { marginTop: 20, color: colors.text }]}>Velocity</Text>
+          <Text style={[FONTS.h3, { marginTop: 20, color: colors.text }]}>Focus Velocity</Text>
           <Text style={[FONTS.body2, { textAlign: 'center', marginTop: 5, paddingHorizontal: 20, color: colors.textSecondary }]}>
-             {totalDateTasks === 0 
-               ? "No tasks scheduled for this day." 
-               : realVelocity >= 100 
-                 ? "Amazing! You completed all scheduled tasks." 
-                 : "Keep crushing your high-priority targets today."}
+            {stats.sessionsToday}/{SESSION_GOAL} sessions done today
           </Text>
+          <View style={{ flexDirection: 'row', gap: 20, marginTop: 15, borderTopWidth: 1, borderTopColor: 'rgba(0,0,0,0.07)', paddingTop: 15 }}>
+            <View style={{ alignItems: 'center', flex: 1 }}>
+              <Text style={[FONTS.h3, { color: colors.primary }]}>{stats.sessionsToday}</Text>
+              <Text style={[FONTS.subtitle, { fontSize: 9, color: colors.textMuted, marginTop: 3 }]}>SESSIONS</Text>
+            </View>
+            <View style={{ width: 1, backgroundColor: 'rgba(0,0,0,0.07)' }} />
+            <View style={{ alignItems: 'center', flex: 1 }}>
+              <Text style={[FONTS.h3, { color: colors.primary }]}>{stats.focusTimeToday}h</Text>
+              <Text style={[FONTS.subtitle, { fontSize: 9, color: colors.textMuted, marginTop: 3 }]}>FOCUS TIME</Text>
+            </View>
+            <View style={{ width: 1, backgroundColor: 'rgba(0,0,0,0.07)' }} />
+            <View style={{ alignItems: 'center', flex: 1 }}>
+              <Text style={[FONTS.h3, { color: colors.primary }]}>{stats.focusQuality}%</Text>
+              <Text style={[FONTS.subtitle, { fontSize: 9, color: colors.textMuted, marginTop: 3 }]}>QUALITY</Text>
+            </View>
+          </View>
         </GlassCard>
 
         <View style={styles.sectionHeaderRow}>
@@ -298,6 +321,15 @@ const TasksScreen = () => {
                 placeholderTextColor={colors.textMuted}
                 value={newTaskTitle}
                 onChangeText={setNewTaskTitle}
+              />
+
+              <Text style={[FONTS.subtitle, styles.modalLabel, { color: colors.textMuted }]}>SUBJECT</Text>
+              <TextInput 
+                style={[styles.input, { backgroundColor: colors.background, borderColor: colors.surfaceBorder, color: colors.text }]} 
+                placeholder="e.g. Physics" 
+                placeholderTextColor={colors.textMuted}
+                value={newTaskSubject}
+                onChangeText={setNewTaskSubject}
               />
 
               <Text style={[FONTS.subtitle, styles.modalLabel, { color: colors.textMuted }]}>DETAILS</Text>

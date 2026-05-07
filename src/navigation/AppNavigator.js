@@ -28,7 +28,7 @@ const MainApp = () => {
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textMuted,
         tabBarStyle: {
-          backgroundColor: isDarkMode ? '#111421' : '#FFFFFF',
+          backgroundColor: colors.surface,
           borderTopWidth: 0,
           elevation: 20,
           shadowColor: '#000',

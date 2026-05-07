@@ -4,6 +4,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import AppNavigator from './src/navigation/AppNavigator';
 import { StatusBar } from 'expo-status-bar';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
+import { DataProvider } from './src/context/DataContext';
 
 const AppContent = memo(() => {
   const { isDarkMode } = useTheme();
@@ -19,9 +20,11 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <ThemeProvider>
-        <NavigationContainer>
-          <AppContent />
-        </NavigationContainer>
+        <DataProvider>
+          <NavigationContainer>
+            <AppContent />
+          </NavigationContainer>
+        </DataProvider>
       </ThemeProvider>
     </SafeAreaProvider>
   );

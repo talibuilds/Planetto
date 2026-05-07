@@ -1,16 +1,18 @@
 import React, { useState, memo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView, Animated } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView, Animated, Image } from 'react-native';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { FONTS, SIZES } from '../constants/theme';
 import { useTheme } from '../context/ThemeContext';
 
 const INITIAL_NOTIFICATIONS = [
   { id: 'n1', icon: 'fire', title: '14-Day Streak!', body: 'You hit a new personal best streak. Keep it up!', time: '2m ago', read: false, color: '#FF6B35' },
-  { id: 'n2', icon: 'bolt', title: '+30 XP Earned', body: 'You completed a 25-min focus session.', time: '18m ago', read: false, color: '#FFD700' },
-  { id: 'n3', icon: 'user-friends', title: 'Elena joined your room', body: 'Elena V. joined "Deep Work Zone".', time: '1h ago', read: false, color: '#6E48F2' },
-  { id: 'n4', icon: 'calendar-check', title: 'Task Due Soon', body: '"Quantum Physics Review" is due in 4 hours.', time: '2h ago', read: true, color: '#18FFFF' },
-  { id: 'n5', icon: 'brain', title: 'Smart Flow Tip', body: 'Your peak hours are 8–10 AM. Schedule hard tasks then!', time: '5h ago', read: true, color: '#A480FF' },
+  { id: 'n2', icon: 'check-circle', title: 'Session Complete', body: 'You completed a 25-min focus session.', time: '18m ago', read: false, color: '#10B981' },
+  { id: 'n3', icon: 'user-friends', title: 'Elena joined your room', body: 'Elena V. joined "Deep Work Zone".', time: '1h ago', read: false, color: '#6366F1' },
+  { id: 'n4', icon: 'calendar-check', title: 'Task Due Soon', body: '"Quantum Physics Review" is due in 4 hours.', time: '2h ago', read: true, color: '#4ADE80' },
+  { id: 'n5', icon: 'brain', title: 'Smart Flow Tip', body: 'Your peak hours are 8–10 AM. Schedule hard tasks then!', time: '5h ago', read: true, color: '#6366F1' },
 ];
+
+const logoImage = require('../../assets/logo.png');
 
 const Header = ({ rightAction }) => {
   const { colors, isDarkMode, toggleTheme } = useTheme();
@@ -27,7 +29,7 @@ const Header = ({ rightAction }) => {
     <>
       <View style={styles.header}>
         <View style={styles.left}>
-          <Text style={[FONTS.h3, { color: colors.primary, fontWeight: '700', letterSpacing: 0.5 }]}>Planetto</Text>
+          <Text style={[FONTS.h2, { color: colors.text, fontSize: 22, letterSpacing: -0.5 }]}>Planetto</Text>
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           {rightAction && <View style={{ marginRight: 20 }}>{rightAction}</View>}
