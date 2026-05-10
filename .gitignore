@@ -43,4 +43,5 @@ yarn-error.*
 # temporary recording files
 *.gif
 assets/frame_*.png
+.idea/
 
