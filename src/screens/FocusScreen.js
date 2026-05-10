@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Circle } from 'react-native-svg';
-import { Audio } from 'expo-av';
+import { useAudioPlayer } from 'expo-audio';
 
 import { FONTS, SIZES } from '../constants/theme';
 import { useTheme } from '../context/ThemeContext';
@@ -42,7 +42,7 @@ const FocusScreen = () => {
   const [selectedSound, setSelectedSound] = useState(null);
   const [selectedAtmosphere, setSelectedAtmosphere] = useState('void');
   const [pauses, setPauses] = useState(0);
-  const [soundObject, setSoundObject] = useState(null);
+  const player = useAudioPlayer('https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3');
   
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const pulseAnimRef = useRef(null);
@@ -50,24 +50,13 @@ const FocusScreen = () => {
   const focusTasks = tasks.filter(t => t.inFocusQueue && !t.completed);
 
   // Audio Playback
-  useEffect(() => {
-    return () => {
-      if (soundObject) soundObject.unloadAsync();
-    };
-  }, [soundObject]);
-
-  const toggleSound = async (soundId) => {
+  const toggleSound = (soundId) => {
     if (selectedSound === soundId) {
-      if (soundObject) await soundObject.stopAsync();
+      player.pause();
       setSelectedSound(null);
     } else {
-      if (soundObject) await soundObject.unloadAsync();
-      // Dummy remote URL, in real app use require('./assets/sounds/rain.mp3')
-      const { sound } = await Audio.Sound.createAsync(
-        { uri: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3' },
-        { shouldPlay: true, isLooping: true }
-      );
-      setSoundObject(sound);
+      player.loop = true;
+      player.play();
       setSelectedSound(soundId);
     }
   };

@@ -35,6 +35,20 @@ const DashboardScreen = ({ navigation }) => {
           <Text style={[styles.greetingText, { color: colors.text }]}>Good morning,{'\n'}<Text style={{color: colors.primary}}>Talib.</Text></Text>
         </View>
 
+        {/* My Classes Quick Access */}
+        <TouchableOpacity activeOpacity={0.8} onPress={() => navigation.navigate('MyClasses')} style={{marginBottom: 20}}>
+          <GlassCard colors={isDarkMode ? ['rgba(24,255,255,0.1)', 'rgba(24,255,255,0.02)'] : ['#FFFFFF', '#F8F9FA']} style={{flexDirection: 'row', alignItems: 'center', padding: 20, borderColor: isDarkMode ? colors.primary + '55' : '#E0E0E0', borderWidth: 1}}>
+            <View style={{width: 50, height: 50, borderRadius: 25, backgroundColor: colors.primary + '33', justifyContent: 'center', alignItems: 'center', marginRight: 15}}>
+              <FontAwesome5 name="calendar-alt" size={24} color={colors.primary} />
+            </View>
+            <View style={{flex: 1}}>
+              <Text style={[FONTS.h2, { color: colors.text, marginBottom: 4 }]}>My Classes</Text>
+              <Text style={[FONTS.body2, { color: colors.textSecondary, fontSize: 12 }]}>View today's timetable & attendance</Text>
+            </View>
+            <FontAwesome5 name="chevron-right" size={16} color={colors.primary} />
+          </GlassCard>
+        </TouchableOpacity>
+
         <GlassCard style={styles.orbitCard}>
           <Text style={[styles.cardTitleCent, { color: colors.text }]}>Daily Orbit</Text>
           <View style={styles.orbitContainer}>
@@ -73,7 +87,7 @@ const DashboardScreen = ({ navigation }) => {
           </Text>
           
           {priorityTask && (
-            <TouchableOpacity style={[styles.missionBtn, { backgroundColor: colors.accent }]} onPress={() => navigation.navigate('Focus')}>
+            <TouchableOpacity activeOpacity={0.8} style={[styles.missionBtn, { backgroundColor: colors.accent }]} onPress={() => navigation.navigate('Focus')}>
               <Text style={[styles.missionBtnText, { color: colors.text }]}>Start Focus Session</Text>
             </TouchableOpacity>
           )}
@@ -118,7 +132,7 @@ const DashboardScreen = ({ navigation }) => {
         )}
 
         {pendingTasks.map(t => (
-          <TouchableOpacity key={t.id} onPress={() => navigation.navigate('Tasks')}>
+          <TouchableOpacity activeOpacity={0.8} key={t.id} onPress={() => navigation.navigate('Tasks')}>
             <GlassCard style={styles.taskItem} padding={15}>
               <View style={[styles.taskIndicator, {backgroundColor: t.pColor || colors.primary}]} />
               <View style={styles.taskContent}>
@@ -139,6 +153,7 @@ const DashboardScreen = ({ navigation }) => {
             </View>
             <Text style={[FONTS.body2, { lineHeight: 18, marginBottom: 20, color: colors.text }]}>We noticed your most productive hours are actually around 8:00 AM. Consider moving dense reading to morning.</Text>
             <TouchableOpacity 
+              activeOpacity={0.8}
               style={{ backgroundColor: colors.primary, paddingVertical: 12, borderRadius: 20, alignItems: 'center' }}
               onPress={() => navigation.navigate('Focus')}
             >
@@ -153,6 +168,7 @@ const DashboardScreen = ({ navigation }) => {
             </View>
             <Text style={[FONTS.body2, { lineHeight: 18, marginBottom: 20, color: colors.text }]}>We noticed your most productive hours are actually around 8:00 AM. Consider moving dense reading to morning.</Text>
             <TouchableOpacity 
+              activeOpacity={0.8}
               style={{ backgroundColor: colors.primary, paddingVertical: 12, borderRadius: 20, alignItems: 'center' }}
               onPress={() => navigation.navigate('Focus')}
             >

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Alert, Animated } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Alert, Animated, Modal, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -39,9 +39,37 @@ const PulseCircle = ({ colors }) => {
 
 const RoomsScreen = () => {
   const { colors, isDarkMode } = useTheme();
-  const { rooms, joinedRooms, toggleRoomJoin } = useData();
+  const { rooms, joinedRooms, toggleRoomJoin, addRoom } = useData();
   
   const [selectedRoom, setSelectedRoom] = useState(null);
+  const [showAddRoomModal, setShowAddRoomModal] = useState(false);
+  const [newRoomForm, setNewRoomForm] = useState({ title: '', subject: '', desc: '', ambience: '', intensity: '', date: '' });
+
+  const handleAddRoom = () => {
+    if (!newRoomForm.title || !newRoomForm.subject) {
+      Alert.alert('Missing Fields', 'Please enter Title and Subject.');
+      return;
+    }
+    const newRoom = {
+      id: 'r' + Date.now(),
+      title: newRoomForm.title,
+      desc: newRoomForm.desc || 'No description provided.',
+      owner: 'Talib Khan',
+      date: newRoomForm.date || 'Today',
+      image: { uri: 'https://images.unsplash.com/photo-1517842645767-c639042777db?q=80&w=800' },
+      live: true,
+      count: 1,
+      subject: newRoomForm.subject.toUpperCase(),
+      ambience: newRoomForm.ambience || 'General',
+      intensity: newRoomForm.intensity || 'Medium',
+      participants: [{ img: 'https://randomuser.me/api/portraits/men/22.jpg' }]
+    };
+    addRoom(newRoom);
+    toggleRoomJoin(newRoom.id);
+    setShowAddRoomModal(false);
+    setNewRoomForm({ title: '', subject: '', desc: '', ambience: '', intensity: '', date: '' });
+    Alert.alert('Hub Created', `Successfully created ${newRoom.title}.`);
+  };
 
   const handleJoin = (room) => {
     const isJoining = !joinedRooms[room.id];
@@ -216,6 +244,89 @@ const RoomsScreen = () => {
           </GlassCard>
         </View>
       )}
+
+      {/* FAB */}
+      <TouchableOpacity 
+        style={[styles.fab, { backgroundColor: colors.primary }]}
+        onPress={() => setShowAddRoomModal(true)}
+      >
+        <FontAwesome5 name="plus" size={24} color="#FFF" />
+      </TouchableOpacity>
+
+      {/* Add Room Modal */}
+      <Modal visible={showAddRoomModal} animationType="slide" transparent={true} onRequestClose={() => setShowAddRoomModal(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 25 }}>
+              <Text style={[FONTS.h2, { color: colors.text }]}>Create a Hub</Text>
+              <TouchableOpacity onPress={() => setShowAddRoomModal(false)}>
+                <FontAwesome5 name="times" size={20} color={colors.textMuted} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 500 }}>
+              <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Title / Name *</Text>
+              <TextInput 
+                style={[styles.inputField, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : '#F8F9FA', color: colors.text, borderColor: colors.surfaceBorder }]} 
+                placeholder="e.g. Physics Group Study" 
+                placeholderTextColor={colors.textMuted}
+                value={newRoomForm.title}
+                onChangeText={(t) => setNewRoomForm({...newRoomForm, title: t})}
+              />
+
+              <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Subject Tag *</Text>
+              <TextInput 
+                style={[styles.inputField, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : '#F8F9FA', color: colors.text, borderColor: colors.surfaceBorder }]} 
+                placeholder="e.g. PHYSICS, MED, CS" 
+                placeholderTextColor={colors.textMuted}
+                value={newRoomForm.subject}
+                onChangeText={(t) => setNewRoomForm({...newRoomForm, subject: t})}
+              />
+
+              <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Description</Text>
+              <TextInput 
+                style={[styles.inputField, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : '#F8F9FA', color: colors.text, borderColor: colors.surfaceBorder, height: 80 }]} 
+                placeholder="What is this hub for?" 
+                placeholderTextColor={colors.textMuted}
+                multiline
+                value={newRoomForm.desc}
+                onChangeText={(t) => setNewRoomForm({...newRoomForm, desc: t})}
+              />
+
+              <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Ambience</Text>
+              <TextInput 
+                style={[styles.inputField, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : '#F8F9FA', color: colors.text, borderColor: colors.surfaceBorder }]} 
+                placeholder="e.g. Lofi, Silent, Rain" 
+                placeholderTextColor={colors.textMuted}
+                value={newRoomForm.ambience}
+                onChangeText={(t) => setNewRoomForm({...newRoomForm, ambience: t})}
+              />
+
+              <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Focus Intensity</Text>
+              <TextInput 
+                style={[styles.inputField, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : '#F8F9FA', color: colors.text, borderColor: colors.surfaceBorder }]} 
+                placeholder="e.g. Medium, Extreme, Chill" 
+                placeholderTextColor={colors.textMuted}
+                value={newRoomForm.intensity}
+                onChangeText={(t) => setNewRoomForm({...newRoomForm, intensity: t})}
+              />
+
+              <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Date / Time</Text>
+              <TextInput 
+                style={[styles.inputField, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : '#F8F9FA', color: colors.text, borderColor: colors.surfaceBorder }]} 
+                placeholder="e.g. Today, 5:00 PM" 
+                placeholderTextColor={colors.textMuted}
+                value={newRoomForm.date}
+                onChangeText={(t) => setNewRoomForm({...newRoomForm, date: t})}
+              />
+
+              <TouchableOpacity style={[styles.saveBtn, { backgroundColor: colors.primary, marginTop: 25, marginBottom: 30 }]} onPress={handleAddRoom}>
+                <Text style={{ color: '#FFF', fontWeight: 'bold', fontSize: 14 }}>Create Hub</Text>
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -327,6 +438,12 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: 0.5,
   },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  modalContent: { borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 25, minHeight: 400 },
+  saveBtn: { padding: 15, borderRadius: 12, alignItems: 'center' },
+  fab: { position: 'absolute', bottom: 30, right: 20, width: 60, height: 60, borderRadius: 30, justifyContent: 'center', alignItems: 'center', elevation: 10, shadowColor: '#000', shadowOffset: {width: 0, height: 4}, shadowOpacity: 0.3, shadowRadius: 5 },
+  inputLabel: { fontSize: 12, fontWeight: '600', marginBottom: 6, marginTop: 15 },
+  inputField: { borderWidth: 1, borderRadius: 12, padding: 15, fontSize: 14, marginBottom: 5 },
 });
 
 export default RoomsScreen;

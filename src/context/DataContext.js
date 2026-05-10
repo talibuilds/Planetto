@@ -159,6 +159,8 @@ export const DataProvider = ({ children }) => {
 
   const toggleRoomJoin = (id) => setJoinedRooms(prev => ({ ...prev, [id]: !prev[id] }));
 
+  const addRoom = (room) => setRooms(prev => [room, ...prev]);
+
   const logFocusSession = (durationSeconds, pauses) => {
     // Focus Quality formula: Base 100 - (pauses * 5), min 50%
     const quality = Math.max(50, 100 - (pauses * 5));
@@ -174,7 +176,7 @@ export const DataProvider = ({ children }) => {
     <DataContext.Provider value={{
       tasks, addTask, toggleTaskCompletion, deleteTask, toggleFocusQueue,
       stats, logFocusSession,
-      rooms, joinedRooms, toggleRoomJoin
+      rooms, joinedRooms, toggleRoomJoin, addRoom
     }}>
       {children}
     </DataContext.Provider>

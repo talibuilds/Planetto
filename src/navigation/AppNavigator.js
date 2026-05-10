@@ -13,6 +13,7 @@ import TasksScreen from '../screens/TasksScreen';
 import FocusScreen from '../screens/FocusScreen';
 import StatsScreen from '../screens/StatsScreen';
 import RoomsScreen from '../screens/RoomsScreen';
+import MyClassesScreen from '../screens/MyClassesScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -95,6 +96,7 @@ const AppNavigator = () => {
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="Login" component={LoginScreen} />
       <Stack.Screen name="MainApp" component={MainApp} />
+      <Stack.Screen name="MyClasses" component={MyClassesScreen} />
     </Stack.Navigator>
   );
 };
