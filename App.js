@@ -4,6 +4,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import AppNavigator from './src/navigation/AppNavigator';
 import { StatusBar } from 'expo-status-bar';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
+import { AuthProvider } from './src/context/AuthContext';
 import { DataProvider } from './src/context/DataContext';
 
 const AppContent = memo(() => {
@@ -20,11 +21,13 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <ThemeProvider>
-        <DataProvider>
-          <NavigationContainer>
-            <AppContent />
-          </NavigationContainer>
-        </DataProvider>
+        <AuthProvider>
+          <DataProvider>
+            <NavigationContainer>
+              <AppContent />
+            </NavigationContainer>
+          </DataProvider>
+        </AuthProvider>
       </ThemeProvider>
     </SafeAreaProvider>
   );

@@ -1,10 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, Alert, Animated } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, Alert, Animated, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Circle } from 'react-native-svg';
-import { useAudioPlayer } from 'expo-audio';
 
 import { FONTS, SIZES } from '../constants/theme';
 import { useTheme } from '../context/ThemeContext';
@@ -15,21 +14,14 @@ import GlassCard from '../components/GlassCard';
 const FOCUS_DURATION = 25 * 60;
 const BREAK_DURATION = 5 * 60;
 
-const SOUNDS = [
-  { id: 'space', label: 'Deep Space', icon: 'rocket' },
-  { id: 'rain', label: 'Soft Rain', icon: 'cloud-rain' },
-  { id: 'cafe', label: 'Café Noise', icon: 'coffee' },
-  { id: 'forest', label: 'Forest', icon: 'tree' },
-  { id: 'waves', label: 'Ocean Waves', icon: 'tint' },
-  { id: 'whitenoise', label: 'White Noise', icon: 'wind' },
-];
-
 const ATMOSPHERES = [
   { id: 'void', label: 'Andromeda Void', darkLabel: 'Cosmic Void', icon: 'star', bgDark: '#0B120E', bgLight: '#F8F9F5' },
   { id: 'study', label: 'Bright Study Room', darkLabel: 'Night Library', icon: 'book', bgDark: '#1E1B18', bgLight: '#FFF4E6' },
   { id: 'office', label: 'Morning Office', darkLabel: 'Dark Office', icon: 'building', bgDark: '#121C26', bgLight: '#E6F0FA' },
   { id: 'zen', label: 'Zen Garden', darkLabel: 'Zen Garden', icon: 'leaf', bgDark: '#0D2214', bgLight: '#E8F5E9' },
 ];
+
+const isWeb = Platform.OS === 'web';
 
 const FocusScreen = () => {
   const { colors, isDarkMode } = useTheme();
@@ -39,27 +31,13 @@ const FocusScreen = () => {
   const [isOnBreak, setIsOnBreak] = useState(false);
   const [breakTimeLeft, setBreakTimeLeft] = useState(BREAK_DURATION);
   const [isNotificationsBlocked, setIsNotificationsBlocked] = useState(true);
-  const [selectedSound, setSelectedSound] = useState(null);
   const [selectedAtmosphere, setSelectedAtmosphere] = useState('void');
   const [pauses, setPauses] = useState(0);
-  const player = useAudioPlayer('https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3');
   
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const pulseAnimRef = useRef(null);
 
   const focusTasks = tasks.filter(t => t.inFocusQueue && !t.completed);
-
-  // Audio Playback
-  const toggleSound = (soundId) => {
-    if (selectedSound === soundId) {
-      player.pause();
-      setSelectedSound(null);
-    } else {
-      player.loop = true;
-      player.play();
-      setSelectedSound(soundId);
-    }
-  };
 
   // Focus timer
   useEffect(() => {
@@ -74,25 +52,31 @@ const FocusScreen = () => {
       
       const currentTask = focusTasks.length > 0 ? focusTasks[0] : null;
 
-      Alert.alert('🎉 Session Complete!', currentTask ? `Did you finish "${currentTask.title}"?` : 'Great work! Take a break?', [
-        { 
-          text: currentTask ? 'Yes, Mark Done' : 'Keep Going', 
-          onPress: () => { 
-            if (currentTask) toggleTaskCompletion(currentTask.id);
-            setTimeLeft(FOCUS_DURATION); 
-            setIsActive(true); 
-          } 
-        },
-        { 
-          text: currentTask ? 'No, Take Break' : 'Take a 5-min Break', 
-          onPress: () => {
-             startBreak();
-          } 
-        },
-      ]);
+      if (isWeb) {
+        const msg = currentTask ? `Did you finish "${currentTask.title}"?` : 'Great work! Take a break?';
+        window.alert('🎉 Session Complete! ' + msg);
+        setTimeLeft(FOCUS_DURATION);
+      } else {
+        Alert.alert('🎉 Session Complete!', currentTask ? `Did you finish "${currentTask.title}"?` : 'Great work! Take a break?', [
+          { 
+            text: currentTask ? 'Yes, Mark Done' : 'Keep Going', 
+            onPress: () => { 
+              if (currentTask) toggleTaskCompletion(currentTask.id);
+              setTimeLeft(FOCUS_DURATION); 
+              setIsActive(true); 
+            } 
+          },
+          { 
+            text: currentTask ? 'No, Take Break' : 'Take a 5-min Break', 
+            onPress: () => {
+               startBreak();
+            } 
+          },
+        ]);
+      }
     }
     return () => clearInterval(interval);
-  }, [isActive, timeLeft, isOnBreak, focusTasks]);
+  }, [isActive, timeLeft, isOnBreak]);
 
   // Break timer
   useEffect(() => {
@@ -104,21 +88,25 @@ const FocusScreen = () => {
       setIsOnBreak(false);
       setBreakTimeLeft(BREAK_DURATION);
       setTimeLeft(FOCUS_DURATION);
-      Alert.alert('Break Over!', 'Ready for another focus session?', [
-        { text: 'Start Session', onPress: () => setIsActive(true) },
-        { text: 'Not Yet', style: 'cancel' },
-      ]);
+      if (isWeb) {
+        window.alert('Break Over! Ready for another focus session?');
+      } else {
+        Alert.alert('Break Over!', 'Ready for another focus session?', [
+          { text: 'Start Session', onPress: () => setIsActive(true) },
+          { text: 'Not Yet', style: 'cancel' },
+        ]);
+      }
     }
     return () => clearInterval(interval);
   }, [isOnBreak, breakTimeLeft]);
 
-  // Pulse animation when active
+  // Pulse animation when active (useNativeDriver: false for web compat)
   useEffect(() => {
     if (isActive) {
       pulseAnimRef.current = Animated.loop(
         Animated.sequence([
-          Animated.timing(pulseAnim, { toValue: 1.08, duration: 800, useNativeDriver: true }),
-          Animated.timing(pulseAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
+          Animated.timing(pulseAnim, { toValue: 1.08, duration: 800, useNativeDriver: !isWeb }),
+          Animated.timing(pulseAnim, { toValue: 1, duration: 800, useNativeDriver: !isWeb }),
         ])
       );
       pulseAnimRef.current.start();
@@ -127,7 +115,7 @@ const FocusScreen = () => {
         pulseAnimRef.current.stop();
         pulseAnimRef.current = null;
       }
-      Animated.timing(pulseAnim, { toValue: 1, duration: 150, useNativeDriver: true }).start();
+      Animated.timing(pulseAnim, { toValue: 1, duration: 150, useNativeDriver: !isWeb }).start();
     }
     return () => {
       if (pulseAnimRef.current) {
@@ -145,10 +133,16 @@ const FocusScreen = () => {
 
   const endSession = () => {
     if (isActive || isOnBreak) {
-      Alert.alert('End Session', 'Are you sure you want to end your current session?', [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'End Session', style: 'destructive', onPress: () => { setIsActive(false); setIsOnBreak(false); setTimeLeft(FOCUS_DURATION); setBreakTimeLeft(BREAK_DURATION); } },
-      ]);
+      if (isWeb) {
+        if (window.confirm('Are you sure you want to end your current session?')) {
+          setIsActive(false); setIsOnBreak(false); setTimeLeft(FOCUS_DURATION); setBreakTimeLeft(BREAK_DURATION);
+        }
+      } else {
+        Alert.alert('End Session', 'Are you sure you want to end your current session?', [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'End Session', style: 'destructive', onPress: () => { setIsActive(false); setIsOnBreak(false); setTimeLeft(FOCUS_DURATION); setBreakTimeLeft(BREAK_DURATION); } },
+        ]);
+      }
     } else {
       setTimeLeft(FOCUS_DURATION);
       setBreakTimeLeft(BREAK_DURATION);
@@ -157,14 +151,18 @@ const FocusScreen = () => {
 
   const toggleTimer = () => {
     if (isOnBreak) {
-      Alert.alert('On Break', 'You are currently on a break. End break early?', [
-        { text: 'Keep Break', style: 'cancel' },
-        { text: 'End Break', onPress: () => { setIsOnBreak(false); setBreakTimeLeft(BREAK_DURATION); } },
-      ]);
+      if (isWeb) {
+        if (window.confirm('End break early?')) { setIsOnBreak(false); setBreakTimeLeft(BREAK_DURATION); }
+      } else {
+        Alert.alert('On Break', 'You are currently on a break. End break early?', [
+          { text: 'Keep Break', style: 'cancel' },
+          { text: 'End Break', onPress: () => { setIsOnBreak(false); setBreakTimeLeft(BREAK_DURATION); } },
+        ]);
+      }
       return;
     }
     if (isActive) {
-      setPauses(p => p + 1); // penalize quality for pauses
+      setPauses(p => p + 1);
     }
     setIsActive(!isActive);
   };
@@ -183,7 +181,6 @@ const FocusScreen = () => {
   };
 
   const displayTime = isOnBreak ? breakTimeLeft : timeLeft;
-  const totalTime = isOnBreak ? BREAK_DURATION : FOCUS_DURATION;
   const progress = isOnBreak 
     ? (BREAK_DURATION - breakTimeLeft) / BREAK_DURATION 
     : (FOCUS_DURATION - timeLeft) / FOCUS_DURATION;
@@ -193,6 +190,8 @@ const FocusScreen = () => {
   
   const currentAtmosphere = ATMOSPHERES.find(a => a.id === selectedAtmosphere);
   const dynamicBackground = isDarkMode ? currentAtmosphere.bgDark : currentAtmosphere.bgLight;
+
+  const sessionsToday = stats?.sessionsToday ?? 0;
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: dynamicBackground }]}>
@@ -212,8 +211,7 @@ const FocusScreen = () => {
                 strokeDasharray="880"
                 strokeDashoffset={dashOffset}
                 strokeLinecap="round"
-                rotation="-90"
-                origin="150, 150"
+                transform="rotate(-90 150 150)"
               />
             </Svg>
 
@@ -227,45 +225,23 @@ const FocusScreen = () => {
                 <TouchableOpacity style={[styles.playBtn, { backgroundColor: activeColor, shadowColor: activeColor }]} onPress={toggleTimer}>
                   <FontAwesome5 name={isActive ? "pause" : "play"} color={"#FFF"} size={20} solid />
                 </TouchableOpacity>
-                <TouchableOpacity style={[styles.resetBtn, { backgroundColor: colors.surfaceLight }]} onPress={resetTimer}>
+                <TouchableOpacity style={[styles.resetBtn, { backgroundColor: colors.surfaceLight || colors.surface }]} onPress={resetTimer}>
                   <FontAwesome5 name="redo" color={colors.text} size={16} />
                 </TouchableOpacity>
               </View>
             </View>
 
             <View style={[styles.sessionsBadge, { backgroundColor: colors.surface, borderColor: colors.surfaceBorder }]}>
-              <Text style={[FONTS.h3, { color: colors.primary }]}>{stats.sessionsToday.toString().padStart(2,'0')}/08</Text>
+              <Text style={[FONTS.h3, { color: colors.primary }]}>{String(sessionsToday).padStart(2,'0')}/08</Text>
               <Text style={[FONTS.subtitle, { fontSize: 7, color: colors.textMuted, marginTop: 4 }]}>SESSIONS TODAY</Text>
             </View>
           </Animated.View>
         </View>
 
-        {/* Sound Filters */}
-        <Text style={[FONTS.subtitle, { color: colors.textMuted, textAlign: 'center', marginBottom: 12, fontSize: 10 }]}>AMBIENT SOUND</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 25 }} contentContainerStyle={{ paddingHorizontal: 5, gap: 8 }}>
-          {SOUNDS.map(sound => {
-            const isSelected = selectedSound === sound.id;
-            return (
-              <TouchableOpacity 
-                key={sound.id}
-                style={[styles.soundBtn, { 
-                  backgroundColor: isSelected ? colors.primary : (isDarkMode ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)'),
-                  borderWidth: 1,
-                  borderColor: isSelected ? colors.primary : colors.surfaceBorder,
-                }]}
-                onPress={() => toggleSound(sound.id)}
-              >
-                <FontAwesome5 name={sound.icon} color={isSelected ? '#FFF' : colors.textMuted} size={12} />
-                <Text style={[styles.soundText, { color: isSelected ? '#FFF' : colors.textMuted }]}>{sound.label}</Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
-
         {/* Notification Blocker Toggle */}
         <GlassCard style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 25 }} padding={20}>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: isNotificationsBlocked ? `${colors.primary}33` : colors.surfaceLight, justifyContent: 'center', alignItems: 'center', marginRight: 15 }}>
+            <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: isNotificationsBlocked ? `${colors.primary}33` : (colors.surfaceLight || colors.surface), justifyContent: 'center', alignItems: 'center', marginRight: 15 }}>
               <FontAwesome5 name={isNotificationsBlocked ? "bell-slash" : "bell"} color={isNotificationsBlocked ? colors.primary : colors.textMuted} size={16} solid />
             </View>
             <View>
@@ -313,8 +289,8 @@ const FocusScreen = () => {
             const isActiveTask = i === 0;
             return (
             <View key={item.id} style={[styles.queueItem, i < focusTasks.length - 1 && { marginBottom: 15 }, isActiveTask && { backgroundColor: `${colors.primary}15`, padding: 10, borderRadius: 12, borderWidth: 1, borderColor: colors.primary }]}>
-              <View style={[styles.queueIcon, { backgroundColor: `${item.pColor}20` }]}>
-                <FontAwesome5 name={item.priority === 'HIGH' ? 'exclamation' : 'check'} color={item.pColor} size={14} />
+              <View style={[styles.queueIcon, { backgroundColor: `${item.pColor || colors.primary}20` }]}>
+                <FontAwesome5 name={item.priority === 'HIGH' ? 'exclamation' : 'check'} color={item.pColor || colors.primary} size={14} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={[FONTS.h3, { fontSize: 14, color: colors.text }]} numberOfLines={1}>{item.title}</Text>
@@ -348,13 +324,6 @@ const FocusScreen = () => {
                 </TouchableOpacity>
               ))}
             </View>
-            <View style={styles.volumeRow}>
-              <FontAwesome5 name="volume-down" color={colors.textMuted} size={12} />
-              <View style={[styles.sliderBg, { backgroundColor: colors.surfaceBorder }]}>
-                <View style={[styles.sliderFill, { backgroundColor: colors.primary }]} />
-              </View>
-              <FontAwesome5 name="volume-up" color={colors.primary} size={14} />
-            </View>
           </LinearGradient>
         ) : (
           <View style={[styles.atmosphereCard, { backgroundColor: colors.surface, borderColor: colors.surfaceBorder }]}>
@@ -373,13 +342,6 @@ const FocusScreen = () => {
                   <Text style={[FONTS.subtitle, { fontSize: 9, marginTop: 6, color: selectedAtmosphere === atm.id ? colors.primary : colors.textMuted }]}>{atm.label}</Text>
                 </TouchableOpacity>
               ))}
-            </View>
-            <View style={styles.volumeRow}>
-              <FontAwesome5 name="volume-down" color={colors.textMuted} size={12} />
-              <View style={[styles.sliderBg, { backgroundColor: colors.surfaceBorder }]}>
-                <View style={[styles.sliderFill, { backgroundColor: colors.primary }]} />
-              </View>
-              <FontAwesome5 name="volume-up" color={colors.primary} size={14} />
             </View>
           </View>
         )}
@@ -401,8 +363,6 @@ const styles = StyleSheet.create({
   playBtn: { width: 56, height: 56, borderRadius: 28, justifyContent: 'center', alignItems: 'center', marginRight: 15, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.5, shadowRadius: 20, elevation: 10 },
   resetBtn: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center' },
   sessionsBadge: { position: 'absolute', top: 30, right: -20, padding: 15, borderRadius: 16, borderWidth: 1 },
-  soundBtn: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 25 },
-  soundText: { ...FONTS.h3, fontSize: 12, marginLeft: 8 },
   actionRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 30, gap: 12 },
   actionBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 20, borderRadius: 24, gap: 10 },
   actionBtnText: { ...FONTS.h3, textAlign: 'center', fontSize: 13 },
@@ -413,9 +373,6 @@ const styles = StyleSheet.create({
   atmosphereCard: { borderRadius: 24, padding: 20, marginBottom: 30, borderWidth: 1 },
   atmosphereGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 20 },
   atmosphereOption: { flex: 1, minWidth: '45%', alignItems: 'center', paddingVertical: 14, borderRadius: 14, borderWidth: 1.5 },
-  volumeRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  sliderBg: { flex: 1, height: 4, borderRadius: 2 },
-  sliderFill: { width: '70%', height: '100%', borderRadius: 2 },
 });
 
 export default FocusScreen;

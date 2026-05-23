@@ -6,14 +6,46 @@ import { FontAwesome5 } from '@expo/vector-icons';
 
 import { FONTS } from '../constants/theme';
 import { useTheme } from '../context/ThemeContext';
+import { useAuth } from '../context/AuthContext';
 
 const logoImage = require('../../assets/logo.png');
+
+const InputField = ({ label, value, onChangeText, placeholder, secure, keyboardType, error, icon, onToggleSecure, showPassword, colors }) => (
+  <View style={styles.inputContainer}>
+    <Text style={[styles.label, { color: colors.textSecondary }]}>{label}</Text>
+    <View style={[styles.inputWrapper, {
+      backgroundColor: colors.surface,
+      borderColor: error ? colors.danger : colors.surfaceBorder,
+    }]}>
+      <FontAwesome5 name={icon} size={14} color={error ? colors.danger : colors.textMuted} style={{ marginRight: 12 }} />
+      <TextInput
+        style={[styles.inputInner, { color: colors.text, flex: 1 }]}
+        placeholder={placeholder}
+        placeholderTextColor={colors.textMuted}
+        value={value}
+        onChangeText={onChangeText}
+        secureTextEntry={secure && !showPassword}
+        keyboardType={keyboardType || 'default'}
+        autoCapitalize="none"
+      />
+      {onToggleSecure && (
+        <TouchableOpacity onPress={onToggleSecure}>
+          <FontAwesome5 name={showPassword ? 'eye-slash' : 'eye'} size={14} color={colors.textMuted} />
+        </TouchableOpacity>
+      )}
+    </View>
+    {error && (
+      <Text style={[styles.errorText, { color: colors.danger }]}>{error}</Text>
+    )}
+  </View>
+);
 
 const LoginScreen = ({ navigation }) => {
   const { colors, isDarkMode } = useTheme();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const { login, register, googleLogin } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState({});
   const [mode, setMode] = useState('login'); // 'login' | 'signup'
@@ -26,8 +58,9 @@ const LoginScreen = ({ navigation }) => {
 
   const validate = () => {
     const errs = {};
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!email.trim()) errs.email = 'Email is required.';
-    else if (!/\S+@\S+\.\S+/.test(email)) errs.email = 'Enter a valid email address.';
+    else if (!emailRegex.test(email.trim())) errs.email = 'Enter a valid email address.';
     if (!password) errs.password = 'Password is required.';
     else if (password.length < 6) errs.password = 'Password must be at least 6 characters.';
     setErrors(errs);
@@ -37,8 +70,9 @@ const LoginScreen = ({ navigation }) => {
   const validateSignup = () => {
     const errs = {};
     if (!signupName.trim()) errs.signupName = 'Name is required.';
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!signupEmail.trim()) errs.signupEmail = 'Email is required.';
-    else if (!/\S+@\S+\.\S+/.test(signupEmail)) errs.signupEmail = 'Enter a valid email.';
+    else if (!emailRegex.test(signupEmail.trim())) errs.signupEmail = 'Enter a valid email.';
     if (!signupPassword) errs.signupPassword = 'Password is required.';
     else if (signupPassword.length < 6) errs.signupPassword = 'Min 6 characters.';
     if (signupConfirm !== signupPassword) errs.signupConfirm = 'Passwords do not match.';
@@ -46,25 +80,40 @@ const LoginScreen = ({ navigation }) => {
     return Object.keys(errs).length === 0;
   };
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     if (!validate()) return;
     setIsLoading(true);
-    // Simulate auth delay
-    setTimeout(() => {
-      setIsLoading(false);
+    const success = await login(email, password);
+    setIsLoading(false);
+    if (success) {
       navigation.replace('MainApp');
-    }, 1200);
+    }
   };
 
-  const handleSignup = () => {
+  const handleSignup = async () => {
     if (!validateSignup()) return;
     setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
-      Alert.alert('Account Created!', `Welcome aboard, ${signupName.split(' ')[0]}! Your Planetto account is ready.`, [
-        { text: 'Launch App', onPress: () => navigation.replace('MainApp') },
-      ]);
-    }, 1200);
+    const success = await register(signupName, signupEmail, signupPassword);
+    setIsLoading(false);
+    if (success) {
+      if (Platform.OS === 'web') {
+        window.alert(`Account Created! Welcome aboard, ${signupName.split(' ')[0]}! Your Planetto account is ready.`);
+        navigation.replace('MainApp');
+      } else {
+        Alert.alert('Account Created!', `Welcome aboard, ${signupName.split(' ')[0]}! Your Planetto account is ready.`, [
+          { text: 'Launch App', onPress: () => navigation.replace('MainApp') },
+        ]);
+      }
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    setIsLoading(true);
+    const success = await googleLogin();
+    setIsLoading(false);
+    if (success) {
+      navigation.replace('MainApp');
+    }
   };
 
   const handleForgotPassword = () => {
@@ -75,38 +124,7 @@ const LoginScreen = ({ navigation }) => {
     Alert.alert('Reset Link Sent', `A password reset link has been sent to ${email}. Check your inbox.`);
   };
 
-  const InputField = ({ label, value, onChangeText, placeholder, secure, keyboardType, errorKey, icon, onToggleSecure }) => (
-    <View style={styles.inputContainer}>
-      <Text style={[styles.label, { color: colors.textSecondary }]}>{label}</Text>
-      <View style={[styles.inputWrapper, {
-        backgroundColor: colors.surface,
-        borderColor: errors[errorKey] ? colors.danger : colors.surfaceBorder,
-      }]}>
-        <FontAwesome5 name={icon} size={14} color={errors[errorKey] ? colors.danger : colors.textMuted} style={{ marginRight: 12 }} />
-        <TextInput
-          style={[styles.inputInner, { color: colors.text, flex: 1 }]}
-          placeholder={placeholder}
-          placeholderTextColor={colors.textMuted}
-          value={value}
-          onChangeText={(t) => {
-            onChangeText(t);
-            if (errors[errorKey]) setErrors(prev => ({ ...prev, [errorKey]: null }));
-          }}
-          secureTextEntry={secure && !showPassword}
-          keyboardType={keyboardType || 'default'}
-          autoCapitalize="none"
-        />
-        {onToggleSecure && (
-          <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-            <FontAwesome5 name={showPassword ? 'eye-slash' : 'eye'} size={14} color={colors.textMuted} />
-          </TouchableOpacity>
-        )}
-      </View>
-      {errors[errorKey] && (
-        <Text style={[styles.errorText, { color: colors.danger }]}>{errors[errorKey]}</Text>
-      )}
-    </View>
-  );
+
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
@@ -146,21 +164,30 @@ const LoginScreen = ({ navigation }) => {
               <InputField
                 label="EMAIL ADDRESS"
                 value={email}
-                onChangeText={setEmail}
+                onChangeText={(t) => {
+                  setEmail(t);
+                  if (errors.email) setErrors(prev => ({ ...prev, email: null }));
+                }}
                 placeholder="alex@planetto.space"
                 keyboardType="email-address"
-                errorKey="email"
+                error={errors.email}
                 icon="envelope"
+                colors={colors}
               />
               <InputField
                 label="PASSWORD"
                 value={password}
-                onChangeText={setPassword}
+                onChangeText={(t) => {
+                  setPassword(t);
+                  if (errors.password) setErrors(prev => ({ ...prev, password: null }));
+                }}
                 placeholder="••••••••"
                 secure
-                errorKey="password"
+                error={errors.password}
                 icon="lock"
                 onToggleSecure={() => setShowPassword(!showPassword)}
+                showPassword={showPassword}
+                colors={colors}
               />
 
               <TouchableOpacity onPress={handleForgotPassword} style={{ alignSelf: 'flex-end', marginBottom: 30, marginTop: -10 }}>
@@ -177,13 +204,12 @@ const LoginScreen = ({ navigation }) => {
                 </LinearGradient>
               </TouchableOpacity>
 
-              {/* Quick demo access */}
               <TouchableOpacity
-                onPress={() => navigation.replace('MainApp')}
-                style={[styles.demoBtn, { borderColor: colors.surfaceBorder }]}
+                onPress={handleGoogleLogin}
+                style={[styles.demoBtn, { borderColor: colors.surfaceBorder, backgroundColor: '#FFF' }]}
               >
-                <FontAwesome5 name="rocket" size={11} color={colors.textMuted} />
-                <Text style={[FONTS.subtitle, { color: colors.textMuted, fontSize: 9, marginLeft: 8 }]}>SKIP LOGIN</Text>
+                <FontAwesome5 name="google" size={13} color="#DB4437" />
+                <Text style={[FONTS.subtitle, { color: '#000', fontSize: 11, marginLeft: 8 }]}>CONTINUE WITH GOOGLE</Text>
               </TouchableOpacity>
             </>
           ) : (
@@ -194,38 +220,55 @@ const LoginScreen = ({ navigation }) => {
               <InputField
                 label="FULL NAME"
                 value={signupName}
-                onChangeText={setSignupName}
+                onChangeText={(t) => {
+                  setSignupName(t);
+                  if (errors.signupName) setErrors(prev => ({ ...prev, signupName: null }));
+                }}
                 placeholder="Alex Mercer"
-                errorKey="signupName"
+                error={errors.signupName}
                 icon="user"
+                colors={colors}
               />
               <InputField
                 label="EMAIL ADDRESS"
                 value={signupEmail}
-                onChangeText={setSignupEmail}
+                onChangeText={(t) => {
+                  setSignupEmail(t);
+                  if (errors.signupEmail) setErrors(prev => ({ ...prev, signupEmail: null }));
+                }}
                 placeholder="alex@planetto.space"
                 keyboardType="email-address"
-                errorKey="signupEmail"
+                error={errors.signupEmail}
                 icon="envelope"
+                colors={colors}
               />
               <InputField
                 label="PASSWORD"
                 value={signupPassword}
-                onChangeText={setSignupPassword}
+                onChangeText={(t) => {
+                  setSignupPassword(t);
+                  if (errors.signupPassword) setErrors(prev => ({ ...prev, signupPassword: null }));
+                }}
                 placeholder="Min 6 characters"
                 secure
-                errorKey="signupPassword"
+                error={errors.signupPassword}
                 icon="lock"
                 onToggleSecure={() => setShowPassword(!showPassword)}
+                showPassword={showPassword}
+                colors={colors}
               />
               <InputField
                 label="CONFIRM PASSWORD"
                 value={signupConfirm}
-                onChangeText={setSignupConfirm}
+                onChangeText={(t) => {
+                  setSignupConfirm(t);
+                  if (errors.signupConfirm) setErrors(prev => ({ ...prev, signupConfirm: null }));
+                }}
                 placeholder="Re-enter password"
                 secure
-                errorKey="signupConfirm"
+                error={errors.signupConfirm}
                 icon="lock"
+                colors={colors}
               />
 
               <TouchableOpacity style={styles.loginBtn} onPress={handleSignup} disabled={isLoading}>

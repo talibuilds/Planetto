@@ -7,29 +7,31 @@ import Svg, { Circle, Path } from 'react-native-svg';
 
 import { FONTS, SIZES } from '../constants/theme';
 import { useTheme } from '../context/ThemeContext';
+import { useAuth } from '../context/AuthContext';
+import { useData } from '../context/DataContext';
 import Header from '../components/Header';
 import GlassCard from '../components/GlassCard';
 import AvatarInitials from '../components/AvatarInitials';
 
 const StatsScreen = ({ navigation }) => {
   const { colors, isDarkMode } = useTheme();
+  const { user } = useAuth();
+  const { stats } = useData();
+
+  const profileName = user?.name || 'Guest User';
+  const profileEmail = user?.email || 'No email provided';
 
   // Profile edit state
   const [isEditModalVisible, setEditModalVisible] = useState(false);
   const [isFeedbackModalVisible, setFeedbackModalVisible] = useState(false);
-  const [profileName, setProfileName] = useState('Talib Khan');
-  const [profileEmail, setProfileEmail] = useState('talib@admin.planetto.com');
-  const [editName, setEditName] = useState('Talib Khan');
-  const [editEmail, setEditEmail] = useState('talib@admin.planetto.com');
+  const [editName, setEditName] = useState(profileName);
+  const [editEmail, setEditEmail] = useState(profileEmail);
   const [editBio, setEditBio] = useState('');
   const [feedbackText, setFeedbackText] = useState('');
 
   const handleSaveProfile = () => {
-    if (!editName.trim()) return;
-    setProfileName(editName.trim());
-    setProfileEmail(editEmail.trim());
     setEditModalVisible(false);
-    Alert.alert('Profile Updated', 'Your profile has been saved successfully!');
+    Alert.alert('Coming Soon', 'Profile editing will be supported in the next update.');
   };
 
   const handleSubmitFeedback = () => {
@@ -85,17 +87,18 @@ const StatsScreen = ({ navigation }) => {
                   strokeDasharray="251"
                   strokeDashoffset="45"
                   strokeLinecap="round"
-                  rotation="-90"
-                  origin="50, 50"
+                  transform="rotate(-90 50 50)"
                 />
               </Svg>
               <View style={styles.qualityCenter}>
-                <Text style={[FONTS.h1, { fontSize: 24, color: colors.text }]}>82</Text>
-                <Text style={[FONTS.subtitle, { fontSize: 8, marginTop: 2, color: colors.text }]}>HIGH</Text>
+                <Text style={[FONTS.h1, { fontSize: 24, color: colors.text }]}>{stats?.focusQuality || 100}</Text>
+                <Text style={[FONTS.subtitle, { fontSize: 8, marginTop: 2, color: colors.text }]}>
+                  {(stats?.focusQuality || 100) > 80 ? 'HIGH' : (stats?.focusQuality || 100) > 50 ? 'MED' : 'LOW'}
+                </Text>
               </View>
             </View>
             <View style={[styles.qualityTextWrap, { backgroundColor: `${colors.primary}1A` }]}>
-               <Text style={[FONTS.body2, { color: colors.primary }]}>+12% from last week.</Text>
+               <Text style={[FONTS.body2, { color: colors.primary }]}>{stats?.focusQuality < 100 ? 'Keep up the good work!' : 'Perfect focus quality.'}</Text>
             </View>
           </View>
         </GlassCard>
@@ -114,7 +117,7 @@ const StatsScreen = ({ navigation }) => {
              <FontAwesome5 name="fire" color={colors.primary} size={12} />
              <View style={{ marginLeft: 10 }}>
                <Text style={[styles.growthPillTitle, { color: colors.textMuted }]}>LONGEST STREAK</Text>
-               <Text style={[FONTS.h3, { color: colors.text }]}>15 Days</Text>
+               <Text style={[FONTS.h3, { color: colors.text }]}>{stats?.dayStreak || 0} Days</Text>
              </View>
           </View>
         </GlassCard>
@@ -122,7 +125,7 @@ const StatsScreen = ({ navigation }) => {
         <GlassCard style={{ marginBottom: 20 }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20 }}>
              <Text style={[styles.cardTitle, { color: colors.text }]}>Weekly Focus</Text>
-             <Text style={[FONTS.h2, { color: colors.primary }]}>42h <Text style={[FONTS.body2, { color: colors.textMuted }]}>total</Text></Text>
+             <Text style={[FONTS.h2, { color: colors.primary }]}>{stats?.focusTimeToday || 0}h <Text style={[FONTS.body2, { color: colors.textMuted }]}>today</Text></Text>
           </View>
           <Svg height="80" width="100%" viewBox="0 0 300 80">
             <Path d="M0,60 Q40,40 80,60 T160,30 T240,50 T300,20" fill="none" stroke={colors.primary} strokeWidth="3" strokeLinecap="round" />
@@ -132,9 +135,9 @@ const StatsScreen = ({ navigation }) => {
 
         <LinearGradient colors={['#7E52E8', '#5234A5']} style={[styles.streakCard, { borderRadius: 24, padding: 20, marginBottom: 20 }]}>
           <FontAwesome5 name="star" color="#FFF" size={20} style={{ alignSelf: 'flex-end' }} />
-          <Text style={[FONTS.h1, { fontSize: 48, color: '#FFF', marginVertical: 10 }]}>12</Text>
+          <Text style={[FONTS.h1, { fontSize: 48, color: '#FFF', marginVertical: 10 }]}>{stats?.dayStreak || 0}</Text>
           <Text style={[FONTS.body1, { color: '#FFF' }]}>Day Streak</Text>
-          <Text style={[FONTS.body2, { color: 'rgba(255,255,255,0.7)', marginTop: 5 }]}>Almost at your 14 day target.</Text>
+          <Text style={[FONTS.body2, { color: 'rgba(255,255,255,0.7)', marginTop: 5 }]}>Stay consistent to build your streak!</Text>
           <View style={styles.streakProgressBg}>
              <View style={styles.streakProgressFill} />
           </View>

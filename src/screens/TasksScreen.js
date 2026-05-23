@@ -73,9 +73,12 @@ const TasksScreen = () => {
 
   const priorityOptions = ['LOW', 'MED', 'HIGH'];
 
-  const selectedTasks = tasks.filter(t => t.date === selectedDate);
-  const activeTasks = selectedTasks.filter(t => !t.completed);
-  const finishedTasks = selectedTasks.filter(t => t.completed);
+  const selectedTasks = tasks.filter(t => {
+    if (!t.dueDate) return false;
+    return t.dueDate.split('T')[0] === selectedDate;
+  });
+  const activeTasks = selectedTasks.filter(t => !t.isCompleted);
+  const finishedTasks = selectedTasks.filter(t => t.isCompleted);
   
   const totalDateTasks = selectedTasks.length;
   const completedDateTasks = finishedTasks.length;
@@ -101,15 +104,11 @@ const TasksScreen = () => {
     const finalColor = finalPriority === 'HIGH' ? colors.danger : finalPriority === 'LOW' ? colors.primary : colors.secondary;
 
     const newTask = {
-      id: Math.random().toString(),
       title: newTaskTitle.trim(),
-      desc: newTaskDesc.trim() || 'No description provided.',
+      description: newTaskDesc.trim() || '',
       subject: newTaskSubject.trim() || 'General',
       priority: finalPriority,
-      pColor: finalColor,
-      completed: false,
-      date: finalDate,
-      inFocusQueue: false,
+      dueDate: finalDate,
     };
     
     addTask(newTask);
@@ -143,32 +142,34 @@ const TasksScreen = () => {
     setAddModalVisible(true);
   };
 
-  const renderTaskCard = (t, fading = false) => (
-    <GlassCard key={t.id} style={[styles.taskCard, fading && { opacity: 0.6 }, { borderLeftColor: t.pColor, borderLeftWidth: 3 }]} padding={15}>
+  const renderTaskCard = (t, fading = false) => {
+    const pColor = t.priority === 'HIGH' ? colors.danger : t.priority === 'LOW' ? colors.primary : colors.secondary;
+    return (
+    <GlassCard key={t.id} style={[styles.taskCard, fading && { opacity: 0.6 }, { borderLeftColor: pColor, borderLeftWidth: 3 }]} padding={15}>
       <View style={styles.taskCardInner}>
         <TouchableOpacity 
-          style={[styles.checkSquare, { borderColor: colors.textMuted }, t.completed && { backgroundColor: colors.primary, borderColor: colors.primary }]} 
+          style={[styles.checkSquare, { borderColor: colors.textMuted }, t.isCompleted && { backgroundColor: colors.primary, borderColor: colors.primary }]} 
           onPress={() => toggleTaskCompletion(t.id)}
         >
-          {t.completed && <FontAwesome5 name="check" size={10} color={isDarkMode ? colors.surface : '#FFFFFF'} />}
+          {t.isCompleted && <FontAwesome5 name="check" size={10} color={isDarkMode ? colors.surface : '#FFFFFF'} />}
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
-          <Text style={[FONTS.h3, { fontSize: 15, color: colors.text }, t.completed && { textDecorationLine: 'line-through', color: colors.textMuted }]}>{t.title}</Text>
-          <Text style={[FONTS.body2, { marginTop: 4, marginBottom: 12, lineHeight: 18, color: colors.textSecondary }]}>{t.desc}</Text>
+          <Text style={[FONTS.h3, { fontSize: 15, color: colors.text }, t.isCompleted && { textDecorationLine: 'line-through', color: colors.textMuted }]}>{t.title}</Text>
+          <Text style={[FONTS.body2, { marginTop: 4, marginBottom: 12, lineHeight: 18, color: colors.textSecondary }]}>{t.description || 'No description'}</Text>
           <View style={styles.taskMetaRow}>
             <FontAwesome5 name="bookmark" color={colors.textMuted} size={10} />
             <Text style={[styles.taskMetaText, { color: colors.textMuted, marginRight: 10 }]}>{t.subject}</Text>
             <FontAwesome5 name="calendar-alt" color={colors.textMuted} size={10} />
-            <Text style={[styles.taskMetaText, { color: colors.textMuted }]}>{t.date}</Text>
+            <Text style={[styles.taskMetaText, { color: colors.textMuted }]}>{t.dueDate ? t.dueDate.split('T')[0] : 'No date'}</Text>
           </View>
         </View>
         <View style={{ alignItems: 'center', gap: 8 }}>
-          {!t.completed && (
-            <View style={[styles.priorityBadge, { backgroundColor: `${t.pColor}20` }]}>
-              <Text style={[styles.priorityBadgeText, { color: t.pColor }]}>{t.priority}</Text>
+          {!t.isCompleted && (
+            <View style={[styles.priorityBadge, { backgroundColor: `${t.priority === 'HIGH' ? colors.danger : t.priority === 'LOW' ? colors.primary : colors.secondary}20` }]}>
+              <Text style={[styles.priorityBadgeText, { color: t.priority === 'HIGH' ? colors.danger : t.priority === 'LOW' ? colors.primary : colors.secondary }]}>{t.priority}</Text>
             </View>
           )}
-          {!t.completed && (
+          {!t.isCompleted && (
             <TouchableOpacity onPress={() => toggleFocusQueue(t.id)} style={styles.deleteBtn}>
               <FontAwesome5 name="stopwatch" size={14} color={t.inFocusQueue ? colors.primary : colors.textMuted} solid={t.inFocusQueue} />
             </TouchableOpacity>
@@ -184,7 +185,8 @@ const TasksScreen = () => {
         </View>
       </View>
     </GlassCard>
-  );
+    );
+  };
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
@@ -241,8 +243,7 @@ const TasksScreen = () => {
                 strokeDasharray="345"
                 strokeDashoffset={calculatedDashOffset}
                 strokeLinecap="round"
-                rotation="-90"
-                origin="70, 70"
+                transform="rotate(-90 70 70)"
               />
             </Svg>
             <View style={styles.velocityCenter}>
@@ -273,21 +274,21 @@ const TasksScreen = () => {
         </GlassCard>
 
         <View style={styles.sectionHeaderRow}>
-          <Text style={[FONTS.h2, { fontSize: 20, color: colors.text }]}>Active Tasks</Text>
+          <Text style={[FONTS.h2, { fontSize: 20, color: colors.text }]}>Assignments</Text>
           <View style={[styles.pendingPill, { backgroundColor: `${colors.primary}1A` }]}>
              <Text style={[styles.pendingText, { color: colors.primary }]}>{activeTasks.length} Pending</Text>
           </View>
         </View>
 
         {activeTasks.length === 0 && (
-          <Text style={[FONTS.body2, { textAlign: 'center', marginVertical: 20, color: colors.textSecondary }]}>No active tasks for this date.</Text>
+          <Text style={[FONTS.body2, { textAlign: 'center', marginVertical: 20, color: colors.textSecondary }]}>No assignments for this date.</Text>
         )}
         {activeTasks.map(t => renderTaskCard(t))}
 
         {finishedTasks.length > 0 && (
           <View style={{ marginTop: 20 }}>
             <View style={styles.sectionHeaderRow}>
-              <Text style={[FONTS.h2, { fontSize: 20, color: colors.textMuted }]}>Finished Tasks</Text>
+              <Text style={[FONTS.h2, { fontSize: 20, color: colors.textMuted }]}>Finished Assignments</Text>
             </View>
             {finishedTasks.map(t => renderTaskCard(t, true))}
           </View>
@@ -426,12 +427,12 @@ const TasksScreen = () => {
                </TouchableOpacity>
             </View>
             <ScrollView style={{ padding: 20 }} showsVerticalScrollIndicator={false}>
-              {tasks.filter(t => t.completed).length === 0 && (
+              {tasks.filter(t => t.isCompleted).length === 0 && (
                  <Text style={[FONTS.body2, { textAlign: 'center', marginTop: 30, color: colors.textSecondary }]}>No missions accomplished yet.</Text>
               )}
-              {tasks.filter(t => t.completed).map(t => (
+              {tasks.filter(t => t.isCompleted).map(t => (
                 <View key={t.id} style={{ marginBottom: 20 }}>
-                  <Text style={[FONTS.body2, { color: colors.primary, marginBottom: 5 }]}>{t.date}</Text>
+                  <Text style={[FONTS.body2, { color: colors.primary, marginBottom: 5 }]}>{t.dueDate ? t.dueDate.split('T')[0] : 'No date'}</Text>
                   {renderTaskCard(t, true)}
                 </View>
               ))}

@@ -6,47 +6,20 @@ import { LinearGradient } from 'expo-linear-gradient';
 
 import { FONTS, SIZES } from '../constants/theme';
 import { useTheme } from '../context/ThemeContext';
+import { useAuth } from '../context/AuthContext';
+import { apiClient } from '../api/client';
 import GlassCard from '../components/GlassCard';
 
-const WEEKLY_SCHEDULE = {
-  MON: [
-    { id: 'm1', subject: 'Analysis and Design of Algorithms LAB', code: 'ADA LAB', teacher: 'MS/PCH/PCV/LN', room: '2F LAB 3', startTime: '08:55', endTime: '10:45', type: 'LAB' },
-    { id: 'm2', subject: 'Cryptography', code: 'CRP', teacher: 'Prof. ROHITH VAIDYA K', room: '205', startTime: '11:15', endTime: '12:10', type: 'THEORY' },
-    { id: 'm3', subject: 'Software Engineering', code: 'SE', teacher: 'Prof. LAKSHMI NEELIMA', room: '205', startTime: '12:10', endTime: '13:05', type: 'THEORY' },
-    { id: 'm4', subject: 'Operating Systems', code: 'OS', teacher: 'Dr. M V SUDHAMANI', room: '210', startTime: '14:00', endTime: '14:55', type: 'THEORY' },
-    { id: 'm5', subject: 'Analysis and Design of Algorithms', code: 'ADA', teacher: 'Prof. MANJULA S', room: '210', startTime: '14:55', endTime: '15:50', type: 'THEORY' }
-  ],
-  TUE: [
-    { id: 't1', subject: 'Theoretical Foundations of Computations TUT', code: 'TFC TUT', teacher: 'Prof. RASHMI K B', room: '304', startTime: '08:55', endTime: '10:45', type: 'TUTORIAL' },
-    { id: 't2', subject: 'Linear Algebra and Optimization', code: 'LAO', teacher: 'TBA', room: '103', startTime: '11:15', endTime: '12:10', type: 'THEORY' },
-    { id: 't3', subject: 'Operating Systems', code: 'OS', teacher: 'Dr. M V SUDHAMANI', room: '103', startTime: '12:10', endTime: '13:05', type: 'THEORY' },
-    { id: 't4', subject: 'Software Engineering', code: 'SE', teacher: 'Prof. LAKSHMI NEELIMA', room: '103', startTime: '14:00', endTime: '14:55', type: 'THEORY' }
-  ],
-  WED: [
-    { id: 'w1', subject: 'Theoretical Foundations of Computations', code: 'TFC', teacher: 'Prof. RASHMI K B', room: '301', startTime: '08:00', endTime: '08:55', type: 'THEORY' },
-    { id: 'w2', subject: 'Linear Algebra and Optimization', code: 'LAO', teacher: 'TBA', room: '301', startTime: '08:55', endTime: '09:50', type: 'THEORY' },
-    { id: 'w3', subject: 'Analysis and Design of Algorithms', code: 'ADA', teacher: 'Prof. MANJULA S', room: '301', startTime: '09:50', endTime: '10:45', type: 'THEORY' }
-  ],
-  THU: [
-    { id: 'th1', subject: 'Software Engineering', code: 'SE', teacher: 'Prof. LAKSHMI NEELIMA', room: '307', startTime: '08:55', endTime: '09:50', type: 'THEORY' },
-    { id: 'th2', subject: 'Analysis and Design of Algorithms', code: 'ADA', teacher: 'Prof. MANJULA S', room: '307', startTime: '09:50', endTime: '10:45', type: 'THEORY' },
-    { id: 'th3', subject: 'Operating Systems', code: 'OS', teacher: 'Dr. M V SUDHAMANI', room: '201', startTime: '11:15', endTime: '12:10', type: 'THEORY' },
-    { id: 'th4', subject: 'Cryptography', code: 'CRP', teacher: 'Prof. ROHITH VAIDYA K', room: '201', startTime: '12:10', endTime: '13:05', type: 'THEORY' },
-    { id: 'th5', subject: 'Operating Systems LAB', code: 'OS LAB', teacher: 'SS/SDV/RM/PN', room: '2F LAB 4', startTime: '14:00', endTime: '15:50', type: 'LAB' }
-  ],
-  FRI: [
-    { id: 'f1', subject: 'MAD LAB', code: 'MAD LAB', teacher: 'MYG/SRN/AP/SUR', room: '2F LAB 4', startTime: '08:55', endTime: '10:45', type: 'LAB' },
-    { id: 'f2', subject: 'Theoretical Foundations of Computations', code: 'TFC', teacher: 'Prof. RASHMI K B', room: '204', startTime: '11:15', endTime: '12:10', type: 'THEORY' },
-    { id: 'f3', subject: 'Cryptography', code: 'CRP', teacher: 'Prof. ROHITH VAIDYA K', room: '204', startTime: '12:10', endTime: '13:05', type: 'THEORY' },
-    { id: 'f4', subject: 'Linear Algebra and Optimization TUT', code: 'LAO TUT', teacher: 'TBA', room: '210', startTime: '14:00', endTime: '15:50', type: 'TUTORIAL' }
-  ],
-  SAT: []
+const INITIAL_SCHEDULE = {
+  MON: [], TUE: [], WED: [], THU: [], FRI: [], SAT: []
 };
+
 
 const MyClassesScreen = ({ navigation }) => {
   const { colors, isDarkMode } = useTheme();
+  const { user } = useAuth();
   
-  const [timetableData, setTimetableData] = useState(WEEKLY_SCHEDULE);
+  const [timetableData, setTimetableData] = useState(INITIAL_SCHEDULE);
   const [attendance, setAttendance] = useState({
     m1: 'Present', m2: 'Present', m3: 'Present', m4: 'Present', m5: 'Present',
     t1: 'Present', t2: 'Present', t3: 'Present', t4: 'Present',
@@ -82,6 +55,39 @@ const MyClassesScreen = ({ navigation }) => {
     const interval = setInterval(updateTime, 60000);
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    if (user?.id) {
+      fetchSchedules();
+    }
+  }, [user?.id]);
+
+  const fetchSchedules = async () => {
+    try {
+      const res = await apiClient.get(`/schedules/${user.id}`);
+      if (res.data.success) {
+        const scheduleObj = { MON: [], TUE: [], WED: [], THU: [], FRI: [], SAT: [] };
+        res.data.data.forEach(item => {
+          if (scheduleObj[item.dayOfWeek]) {
+            scheduleObj[item.dayOfWeek].push(item);
+          }
+        });
+        
+        // Sort each day's array by startTime
+        Object.keys(scheduleObj).forEach(day => {
+          scheduleObj[day].sort((a, b) => {
+            const [ah, am] = a.startTime.split(':').map(Number);
+            const [bh, bm] = b.startTime.split(':').map(Number);
+            return (ah * 60 + am) - (bh * 60 + bm);
+          });
+        });
+        
+        setTimetableData(scheduleObj);
+      }
+    } catch (e) {
+      console.error('Failed to fetch schedules', e);
+    }
+  };
 
   const days = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
   let currentDay = days[new Date().getDay()];

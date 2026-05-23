@@ -1,0 +1,94 @@
+// Planetto Backend — Prisma Schema
+// Docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Enums ─────────────────────────────────────────────
+enum Priority {
+  LOW
+  MED
+  HIGH
+}
+
+// ─── User ──────────────────────────────────────────────
+model User {
+  id            String         @id @default(uuid())
+  email         String         @unique
+  password      String?
+  googleId      String?        @unique @map("google_id")
+  name          String?
+  createdAt     DateTime       @default(now()) @map("created_at")
+
+  // Relations
+  schedules     Schedule[]
+  tasks         Task[]
+  focusSessions FocusSession[]
+
+  @@map("users")
+}
+
+// ─── Schedule (Class Timetable Entry) ──────────────────
+model Schedule {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  dayOfWeek String   @map("day_of_week")   // e.g. "MON", "TUE"
+  startTime String   @map("start_time")    // e.g. "09:00"
+  endTime   String   @map("end_time")      // e.g. "10:30"
+  subject   String
+  code      String?                         // e.g. "ADA", "OS"
+  teacher   String?
+  room      String?
+  type      String   @default("THEORY")    // THEORY, LAB, TUTORIAL
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("schedules")
+}
+
+// ─── Task ──────────────────────────────────────────────
+model Task {
+  id           String    @id @default(uuid())
+  userId       String    @map("user_id")
+  title        String
+  description  String?
+  subject      String    @default("General")
+  priority     Priority  @default(MED)
+  isCompleted  Boolean   @default(false) @map("is_completed")
+  inFocusQueue Boolean   @default(false) @map("in_focus_queue")
+  dueDate      DateTime? @map("due_date")
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("tasks")
+}
+
+// ─── Focus Session ─────────────────────────────────────
+model FocusSession {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  duration  Int      // Duration in seconds (frontend sends seconds)
+  pauses    Int      @default(0) // Number of pauses during session
+  quality   Int      @default(100) // Focus quality percentage
+  notes     String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("focus_sessions")
+}
+

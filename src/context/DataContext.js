@@ -1,4 +1,6 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import { useAuth } from './AuthContext';
+import { apiClient } from '../api/client';
 
 const DataContext = createContext();
 
@@ -21,33 +23,53 @@ const dayAfter = (() => {
 })();
 
 export const DataProvider = ({ children }) => {
-  const [tasks, setTasks] = useState([
-    // --- TODAY'S TASKS (mix of done/pending for a realistic velocity ≠ 100%) ---
-    { id: 't1', title: 'Quantum Physics Final Review', desc: 'Chapters 12-18 and past papers.', priority: 'HIGH', pColor: '#EF4444', completed: false, date: today, subject: 'Physics', inFocusQueue: true },
-    { id: 't2', title: 'Lab Report: Thermal Dynamics', desc: 'Finalize data visualization and abstract.', priority: 'HIGH', pColor: '#EF4444', completed: false, date: today, subject: 'Chemistry', inFocusQueue: true },
-    { id: 't3', title: 'Literature Analysis', desc: 'Chapter 7 — Metaphors in Modernism.', priority: 'MED', pColor: '#A1A1AA', completed: false, date: today, subject: 'Literature', inFocusQueue: true },
-    { id: 't4', title: 'Library Book Return', desc: 'Return "The Art of War" and "Digital Design".', priority: 'LOW', pColor: '#2D5A3C', completed: true, date: today, subject: 'General', inFocusQueue: false },
-    { id: 't5', title: 'Morning Revision Notes', desc: 'Write concise revision notes from yesterday.', priority: 'MED', pColor: '#A1A1AA', completed: true, date: today, subject: 'Physics', inFocusQueue: false },
-    { id: 't6', title: 'Data Structures Assignment', desc: 'Complete tree traversal problems set 3.', priority: 'HIGH', pColor: '#EF4444', completed: true, date: today, subject: 'Computer Science', inFocusQueue: false },
-    // --- TOMORROW'S TASKS ---
-    { id: 't7', title: 'Organic Chemistry: Isomers', desc: 'Study isomerism types and practice naming.', priority: 'HIGH', pColor: '#EF4444', completed: false, date: tomorrow, subject: 'Chemistry', inFocusQueue: false },
-    { id: 't8', title: 'Essay: Industrial Revolution', desc: 'Write 1500 words essay for History class.', priority: 'MED', pColor: '#A1A1AA', completed: false, date: tomorrow, subject: 'History', inFocusQueue: false },
-    { id: 't9', title: 'Group Study: Economics', desc: 'Meet with study group at 4PM in Room B2.', priority: 'LOW', pColor: '#2D5A3C', completed: false, date: tomorrow, subject: 'Economics', inFocusQueue: false },
-    // --- DAY AFTER ---
-    { id: 't10', title: 'Maths: Integration Practice', desc: 'Solve 30 integration problems from textbook.', priority: 'HIGH', pColor: '#EF4444', completed: false, date: dayAfter, subject: 'Mathematics', inFocusQueue: false },
-    { id: 't11', title: 'Biology: Cell Division', desc: 'Review mitosis vs meiosis diagrams.', priority: 'MED', pColor: '#A1A1AA', completed: false, date: dayAfter, subject: 'Biology', inFocusQueue: false },
-  ]);
-
-  // Stats: sessions=4 (velocity gauge), focusTimeToday=2.8 — these are separate from Daily Orbit (task count)
+  const { user } = useAuth();
+  const [tasks, setTasks] = useState([]);
   const [stats, setStats] = useState({
-    dayStreak: 14,
-    focusTimeToday: 2.8,   // hours of actual focused timer usage
-    sessionsToday: 4,       // number of completed pomodoro sessions  
-    focusQuality: 78,       // quality % based on pauses
-    // Velocity = sessionsToday / daily session goal (8) × 100 = 50%
-    // Daily Orbit = completedTasks / totalTasks × 100 = 3/6 = 50% today BUT they use different scales
-    // velocity represents SPEED of sessions, daily orbit represents BREADTH of task completion
+    dayStreak: 0,
+    focusTimeToday: 0,
+    sessionsToday: 0,
+    focusQuality: 100,
   });
+
+  // Fetch tasks and stats when user logs in
+  useEffect(() => {
+    if (user?.id) {
+      fetchTasks();
+      fetchStats();
+    } else {
+      setTasks([]);
+      setStats({ dayStreak: 0, focusTimeToday: 0, sessionsToday: 0, focusQuality: 100 });
+    }
+  }, [user?.id]);
+
+  const fetchTasks = async () => {
+    try {
+      const res = await apiClient.get(`/tasks/${user.id}`);
+      if (res.data.success) {
+        setTasks(res.data.data);
+      }
+    } catch (e) {
+      console.error('Failed to fetch tasks', e);
+    }
+  };
+
+  const fetchStats = async () => {
+    try {
+      const res = await apiClient.get(`/focus/${user.id}/stats`);
+      if (res.data.success) {
+        const data = res.data.data;
+        setStats({
+          dayStreak: data.dayStreak || 0,
+          focusTimeToday: data.today?.focusHoursToday || 0,
+          sessionsToday: data.today?.sessionsToday || 0,
+          focusQuality: data.today?.avgQualityToday || 100,
+        });
+      }
+    } catch (e) {
+      console.error('Failed to fetch stats', e);
+    }
+  };
 
   const [rooms, setRooms] = useState([
     {
@@ -143,33 +165,70 @@ export const DataProvider = ({ children }) => {
 
   const [joinedRooms, setJoinedRooms] = useState({ r1: true });
 
-  const addTask = (task) => setTasks(prev => [...prev, task]);
+  const addTask = async (taskData) => {
+    if (!user) return;
+    try {
+      // Backend expects title, description, subject, priority, dueDate
+      const res = await apiClient.post('/tasks', {
+        ...taskData,
+        userId: user.id
+      });
+      if (res.data.success) {
+        setTasks(prev => [...prev, res.data.data]);
+      }
+    } catch (e) {
+      console.error('Failed to add task', e);
+    }
+  };
   
-  const toggleTaskCompletion = (id) => setTasks(prev =>
-    prev.map(t => t.id === id ? { ...t, completed: !t.completed } : t)
-  );
+  const toggleTaskCompletion = async (id) => {
+    try {
+      // Optimistic update
+      setTasks(prev => prev.map(t => t.id === id ? { ...t, isCompleted: !t.isCompleted } : t));
+      await apiClient.patch(`/tasks/${id}/toggle`);
+    } catch (e) {
+      console.error('Failed to toggle completion', e);
+      fetchTasks(); // Revert on failure
+    }
+  };
   
-  const deleteTask = (id) => setTasks(prev => {
-    const filtered = prev.filter(t => t.id !== id);
-    // After deletion, auto-add next highest priority pending task to queue if the deleted task was in queue
-    return filtered;
-  });
+  const deleteTask = async (id) => {
+    try {
+      setTasks(prev => prev.filter(t => t.id !== id));
+      await apiClient.delete(`/tasks/${id}`);
+    } catch (e) {
+      console.error('Failed to delete task', e);
+      fetchTasks(); // Revert on failure
+    }
+  };
 
-  const toggleFocusQueue = (id) => setTasks(prev => prev.map(t => t.id === id ? { ...t, inFocusQueue: !t.inFocusQueue } : t));
+  const toggleFocusQueue = async (id) => {
+    try {
+      setTasks(prev => prev.map(t => t.id === id ? { ...t, inFocusQueue: !t.inFocusQueue } : t));
+      await apiClient.patch(`/tasks/${id}/focus`);
+    } catch (e) {
+      console.error('Failed to toggle focus queue', e);
+      fetchTasks(); // Revert on failure
+    }
+  };
 
   const toggleRoomJoin = (id) => setJoinedRooms(prev => ({ ...prev, [id]: !prev[id] }));
 
   const addRoom = (room) => setRooms(prev => [room, ...prev]);
 
-  const logFocusSession = (durationSeconds, pauses) => {
-    // Focus Quality formula: Base 100 - (pauses * 5), min 50%
-    const quality = Math.max(50, 100 - (pauses * 5));
-    setStats(prev => ({
-      ...prev,
-      focusTimeToday: parseFloat((prev.focusTimeToday + (durationSeconds / 3600)).toFixed(1)),
-      sessionsToday: prev.sessionsToday + 1,
-      focusQuality: Math.round((prev.focusQuality + quality) / 2),
-    }));
+  const logFocusSession = async (durationSeconds, pauses) => {
+    if (!user) return;
+    try {
+      await apiClient.post('/focus', {
+        userId: user.id,
+        duration: durationSeconds,
+        pauses
+      });
+      // Refetch stats to get updated velocity/quality from DB
+      await fetchStats();
+    } catch (e) {
+      console.error('Failed to log session', e);
+    }
   };
 
   return (

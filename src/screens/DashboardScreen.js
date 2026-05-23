@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Alert } from 'react-native';
+import React, { useState, useMemo } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Image, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesome5 } from '@expo/vector-icons';
 import Svg, { Circle } from 'react-native-svg';
@@ -10,20 +10,40 @@ import { useTheme } from '../context/ThemeContext';
 import Header from '../components/Header';
 import GlassCard from '../components/GlassCard';
 import { useData } from '../context/DataContext';
+import { useAuth } from '../context/AuthContext';
 
 const DashboardScreen = ({ navigation }) => {
   const { colors, isDarkMode } = useTheme();
-  const { stats, tasks } = useData();
+  const { user } = useAuth();
+  const { stats, tasks, toggleTaskCompletion, addTask } = useData();
+  const [newTodoTitle, setNewTodoTitle] = useState('');
 
-  const pendingTasks = tasks.filter(t => !t.completed).slice(0, 3); // show up to 3 upcoming
+  // To-Dos are tasks without a due date
+  const todoTasks = useMemo(() => tasks.filter(t => !t.dueDate), [tasks]);
+
+  const handleAddTodo = () => {
+    if (!newTodoTitle.trim()) return;
+    addTask({
+      title: newTodoTitle.trim(),
+      description: '',
+      subject: 'To-Do',
+      priority: 'MED',
+      dueDate: null, // explicit no due date
+    });
+    setNewTodoTitle('');
+  };
+
+  const assignments = useMemo(() => tasks.filter(t => t.dueDate), [tasks]);
+
+  const pendingTasks = assignments.filter(t => !t.isCompleted).slice(0, 3);
   
-  const totalTasks = tasks.length;
-  const completedTasks = tasks.filter(t => t.completed).length;
+  const totalTasks = assignments.length;
+  const completedTasks = assignments.filter(t => t.isCompleted).length;
   const orbitVelocity = totalTasks === 0 ? 0 : Math.round((completedTasks / totalTasks) * 100);
   const orbitDashOffset = 345 - (345 * (Math.min(orbitVelocity, 100) / 100));
   const pendingCount = totalTasks - completedTasks;
 
-  const priorityTask = tasks.find(t => t.priority === 'HIGH' && !t.completed) || tasks.find(t => !t.completed);
+  const priorityTask = assignments.find(t => t.priority === 'HIGH' && !t.isCompleted) || assignments.find(t => !t.isCompleted);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
@@ -32,7 +52,7 @@ const DashboardScreen = ({ navigation }) => {
 
         <View style={styles.greetingSection}>
           <Text style={[FONTS.subtitle, { color: colors.textSecondary }]}>ACADEMIC COMMAND CENTER</Text>
-          <Text style={[styles.greetingText, { color: colors.text }]}>Good morning,{'\n'}<Text style={{color: colors.primary}}>Talib.</Text></Text>
+          <Text style={[styles.greetingText, { color: colors.text }]}>Good morning,{'\n'}<Text style={{color: colors.primary}}>{user?.name ? user.name.split(' ')[0] : 'Explorer'}.</Text></Text>
         </View>
 
         {/* My Classes Quick Access */}
@@ -62,8 +82,7 @@ const DashboardScreen = ({ navigation }) => {
                 strokeDasharray="345"
                 strokeDashoffset={orbitDashOffset}
                 strokeLinecap="round"
-                rotation="-90"
-                origin="70, 70"
+                transform="rotate(-90 70 70)"
               />
             </Svg>
             <View style={styles.orbitTextContainer}>
@@ -134,48 +153,67 @@ const DashboardScreen = ({ navigation }) => {
         {pendingTasks.map(t => (
           <TouchableOpacity activeOpacity={0.8} key={t.id} onPress={() => navigation.navigate('Tasks')}>
             <GlassCard style={styles.taskItem} padding={15}>
-              <View style={[styles.taskIndicator, {backgroundColor: t.pColor || colors.primary}]} />
+              <View style={[styles.taskIndicator, {backgroundColor: t.priority === 'HIGH' ? '#F44336' : colors.primary}]} />
               <View style={styles.taskContent}>
                 <Text style={[styles.taskTitle, { color: colors.text }]} numberOfLines={1}>{t.title}</Text>
-                <Text style={[styles.taskMeta, { color: colors.textSecondary }]}>Subject: {t.subject || 'General'} • Due: {t.date}</Text>
+                <Text style={[styles.taskMeta, { color: colors.textSecondary }]}>Subject: {t.subject || 'General'} • Due: {t.dueDate ? t.dueDate.split('T')[0] : ''}</Text>
               </View>
               <FontAwesome5 name="chevron-right" color={colors.textMuted} size={12} />
             </GlassCard>
           </TouchableOpacity>
         ))}
 
-        {/* Smart Flow Optimization */}
-        {isDarkMode ? (
-          <LinearGradient colors={['rgba(11,14,23,1)', 'rgba(24,255,255,0.05)']} style={[styles.smartFlowCard, { borderColor: 'rgba(24,255,255,0.1)', marginTop: 15 }]}>
-            <View style={styles.smartFlowHeader}>
-              <FontAwesome5 name="brain" color={colors.primary} size={16} />
-              <Text style={[FONTS.h3, { color: colors.primary, marginLeft: 10 }]}>Smart Flow Optimization</Text>
-            </View>
-            <Text style={[FONTS.body2, { lineHeight: 18, marginBottom: 20, color: colors.text }]}>We noticed your most productive hours are actually around 8:00 AM. Consider moving dense reading to morning.</Text>
-            <TouchableOpacity 
-              activeOpacity={0.8}
-              style={{ backgroundColor: colors.primary, paddingVertical: 12, borderRadius: 20, alignItems: 'center' }}
-              onPress={() => navigation.navigate('Focus')}
-            >
-              <Text style={{ color: colors.surface, fontWeight: '700', fontSize: 12 }}>OPTIMIZE SCHEDULE</Text>
-            </TouchableOpacity>
-          </LinearGradient>
-        ) : (
-          <View style={[styles.smartFlowCard, { backgroundColor: colors.surface, borderColor: `${colors.primary}33`, marginTop: 15 }]}>
-            <View style={styles.smartFlowHeader}>
-              <FontAwesome5 name="brain" color={colors.primary} size={16} />
-              <Text style={[FONTS.h3, { color: colors.primary, marginLeft: 10 }]}>Smart Flow Optimization</Text>
-            </View>
-            <Text style={[FONTS.body2, { lineHeight: 18, marginBottom: 20, color: colors.text }]}>We noticed your most productive hours are actually around 8:00 AM. Consider moving dense reading to morning.</Text>
-            <TouchableOpacity 
-              activeOpacity={0.8}
-              style={{ backgroundColor: colors.primary, paddingVertical: 12, borderRadius: 20, alignItems: 'center' }}
-              onPress={() => navigation.navigate('Focus')}
-            >
-              <Text style={{ color: '#FFF', fontWeight: '700', fontSize: 12 }}>OPTIMIZE SCHEDULE</Text>
-            </TouchableOpacity>
+        {/* Today's To-Do */}
+        <View style={[styles.sectionHeaderRow, { marginTop: 15 }]}>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <FontAwesome5 name="clipboard-check" color={colors.primary} size={16} />
+            <Text style={[FONTS.h3, { color: colors.text, marginLeft: 8 }]}>Daily To-Do</Text>
           </View>
-        )}
+          <Text style={[styles.viewAllBtn, { color: colors.textMuted }]}>
+            {todoTasks.filter(t => t.isCompleted).length}/{todoTasks.length} done
+          </Text>
+        </View>
+
+        <GlassCard style={{ paddingVertical: 8, paddingHorizontal: 15, marginBottom: 20 }}>
+          {todoTasks.length === 0 ? (
+            <View style={{ alignItems: 'center', paddingVertical: 20 }}>
+              <FontAwesome5 name="check-double" size={20} color={colors.textMuted} style={{ marginBottom: 10 }} />
+              <Text style={[FONTS.body2, { color: colors.textSecondary, textAlign: 'center' }]}>No to-dos yet.{"\n"}Add one below.</Text>
+            </View>
+          ) : (
+            todoTasks.map((t, idx) => (
+              <TouchableOpacity
+                key={t.id}
+                activeOpacity={0.7}
+                onPress={() => toggleTaskCompletion(t.id)}
+                style={[styles.todoRow, idx < todoTasks.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.surfaceBorder }]}
+              >
+                <View style={[styles.todoCheckbox, t.isCompleted && { backgroundColor: colors.primary, borderColor: colors.primary }]}>
+                  {t.isCompleted && <FontAwesome5 name="check" size={9} color="#FFF" />}
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.todoTitle, { color: colors.text }, t.isCompleted && { textDecorationLine: 'line-through', color: colors.textMuted }]} numberOfLines={1}>{t.title}</Text>
+                </View>
+              </TouchableOpacity>
+            ))
+          )}
+          
+          {/* Add To-Do Input */}
+          <View style={[styles.todoRow, { borderTopWidth: todoTasks.length > 0 ? 1 : 0, borderTopColor: colors.surfaceBorder, paddingVertical: 10, marginTop: todoTasks.length > 0 ? 5 : 0 }]}>
+            <View style={[styles.todoCheckbox, { borderColor: 'transparent', backgroundColor: 'transparent' }]}>
+              <FontAwesome5 name="plus" size={10} color={colors.textMuted} />
+            </View>
+            <TextInput
+              style={{ flex: 1, ...FONTS.body2, color: colors.text, fontSize: 14 }}
+              placeholder="Add a new to-do..."
+              placeholderTextColor={colors.textMuted}
+              value={newTodoTitle}
+              onChangeText={setNewTodoTitle}
+              onSubmitEditing={handleAddTodo}
+              returnKeyType="done"
+            />
+          </View>
+        </GlassCard>
 
         <View style={{height: 100}} /> 
       </ScrollView>
@@ -226,8 +264,11 @@ const styles = StyleSheet.create({
   extraUsers: { width: 24, height: 24, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginLeft: -8, borderWidth: 1 },
   extraUsersText: { fontSize: 10, fontWeight: '700' },
 
-  smartFlowCard: { borderRadius: 24, padding: 20, marginBottom: 30, borderWidth: 1 },
-  smartFlowHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
+  todoRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 5 },
+  todoCheckbox: { width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: '#CCC', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
+  todoTitle: { fontSize: 14, fontWeight: '600', marginBottom: 2 },
+  todoMeta: { fontSize: 11 },
+  todoPriorityBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, marginLeft: 8 },
 });
 
 export default DashboardScreen;
