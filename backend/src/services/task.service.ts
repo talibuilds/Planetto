@@ -9,6 +9,8 @@ interface CreateTaskInput {
   priority?: Priority;
   dueDate?: string; // ISO date string e.g. "2026-05-12"
   inFocusQueue?: boolean;
+  sessionsRequired?: number;
+  sessionsCompleted?: number;
 }
 
 interface UpdateTaskInput {
@@ -19,6 +21,8 @@ interface UpdateTaskInput {
   isCompleted?: boolean;
   inFocusQueue?: boolean;
   dueDate?: string | null;
+  sessionsRequired?: number;
+  sessionsCompleted?: number;
 }
 
 export const taskService = {
@@ -61,22 +65,23 @@ export const taskService = {
         priority: input.priority || "MED",
         dueDate: input.dueDate ? new Date(input.dueDate) : null,
         inFocusQueue: input.inFocusQueue || false,
+        sessionsRequired: input.sessionsRequired ?? 2,
+        sessionsCompleted: input.sessionsCompleted ?? 0,
       },
     });
   },
 
-  /**
-   * Update a task by ID.
-   */
   async update(taskId: string, input: UpdateTaskInput) {
+    const data: any = { ...input };
+    if (input.dueDate !== undefined) {
+      data.dueDate = input.dueDate ? new Date(input.dueDate) : null;
+    }
+    if (input.isCompleted !== undefined) {
+      data.completedAt = input.isCompleted ? new Date() : null;
+    }
     return prisma.task.update({
       where: { id: taskId },
-      data: {
-        ...input,
-        dueDate: input.dueDate !== undefined
-          ? (input.dueDate ? new Date(input.dueDate) : null)
-          : undefined,
-      },
+      data,
     });
   },
 
@@ -89,9 +94,13 @@ export const taskService = {
       throw Object.assign(new Error("Task not found"), { statusCode: 404 });
     }
 
+    const nextIsCompleted = !task.isCompleted;
     return prisma.task.update({
       where: { id: taskId },
-      data: { isCompleted: !task.isCompleted },
+      data: { 
+        isCompleted: nextIsCompleted,
+        completedAt: nextIsCompleted ? new Date() : null
+      },
     });
   },
 

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Modal, TextInput, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Modal, TextInput, Alert, ActivityIndicator, Platform } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -15,11 +16,104 @@ import AvatarInitials from '../components/AvatarInitials';
 
 const StatsScreen = ({ navigation }) => {
   const { colors, isDarkMode } = useTheme();
-  const { user } = useAuth();
-  const { stats } = useData();
+  const { user, updateProfile } = useAuth();
+  const { stats, tasks, formatFocusTime } = useData();
 
   const profileName = user?.name || 'Guest User';
   const profileEmail = user?.email || 'No email provided';
+
+  const subjectColors = [
+    colors.primary,
+    colors.secondary || '#7E52E8',
+    colors.accent || '#F59E0B',
+    '#3B82F6',
+    '#EF4444',
+    '#EC4899',
+    '#10B981',
+    '#8B5CF6'
+  ];
+
+  const allocatedSubjects = (() => {
+    if (!tasks || tasks.length === 0) return [];
+    const counts = {};
+    let total = 0;
+    tasks.forEach(t => {
+      const sub = t.subject || 'General';
+      counts[sub] = (counts[sub] || 0) + 1;
+      total++;
+    });
+    return Object.keys(counts).map((sub, idx) => {
+      const count = counts[sub];
+      const pct = Math.round((count / total) * 100);
+      return {
+        title: sub,
+        percent: `${pct}%`,
+        width: `${pct}%`,
+        pColor: subjectColors[idx % subjectColors.length]
+      };
+    }).sort((a, b) => parseInt(b.percent) - parseInt(a.percent));
+  })();
+
+  const getHeatGridData = () => {
+    const squares = [];
+    const activity = stats?.activity || {};
+    // Loop from 29 days ago to today (30 days total)
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const dateStr = d.toISOString().split('T')[0];
+      
+      // Use backend activity count (combines focus sessions, tasks, logins, room activity)
+      const count = activity[dateStr] || 0;
+      
+      squares.push({
+        date: dateStr,
+        displayDate: d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }),
+        count
+      });
+    }
+    return squares;
+  };
+
+  const handleBoxClick = (displayDate, count) => {
+    Alert.alert(
+      "Consistent Growth",
+      `${count} activit${count === 1 ? 'y' : 'ies'} recorded on ${displayDate}.`
+    );
+  };
+
+  const gridData = getHeatGridData();
+
+  const getWeeklyData = () => {
+    const act = stats?.activity || {};
+    const weeklyCounts = [];
+    let activeDays = 0;
+    
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const dateStr = d.toISOString().split('T')[0];
+      
+      // Use backend activity data directly (combines focus sessions + tasks + logins)
+      const totalActivity = act[dateStr] || 0;
+      if (totalActivity > 0) {
+        activeDays++;
+      }
+      weeklyCounts.push(totalActivity);
+    }
+    return { weeklyCounts, activeDays };
+  };
+
+  const { weeklyCounts, activeDays } = getWeeklyData();
+
+  // Generate SVG path for the line
+  const maxVal = Math.max(...weeklyCounts, 1);
+  const pathD = weeklyCounts.map((val, idx) => {
+    const x = idx * 50;
+    const y = 70 - (val / maxVal) * 50;
+    return `${idx === 0 ? 'M' : 'L'}${x},${y}`;
+  }).join(' ');
+  const fillD = `${pathD} L300,80 L0,80 Z`;
 
   // Profile edit state
   const [isEditModalVisible, setEditModalVisible] = useState(false);
@@ -28,10 +122,54 @@ const StatsScreen = ({ navigation }) => {
   const [editEmail, setEditEmail] = useState(profileEmail);
   const [editBio, setEditBio] = useState('');
   const [feedbackText, setFeedbackText] = useState('');
+  const [pickedPhoto, setPickedPhoto] = useState(null);
+  const [isSaving, setIsSaving] = useState(false);
 
-  const handleSaveProfile = () => {
-    setEditModalVisible(false);
-    Alert.alert('Coming Soon', 'Profile editing will be supported in the next update.');
+  const handleChangePhoto = async () => {
+    try {
+      if (Platform.OS !== 'web') {
+        const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (permissionResult.granted === false) {
+          Alert.alert("Permission Required", "You need to allow camera roll access to upload a profile photo.");
+          return;
+        }
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.3,
+        base64: true,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const asset = result.assets[0];
+        const base64Uri = `data:image/jpeg;base64,${asset.base64}`;
+        setPickedPhoto(base64Uri);
+      }
+    } catch (err) {
+      console.error("ImagePicker Error:", err);
+      Alert.alert("Error", "Failed to pick image: " + err.message);
+    }
+  };
+
+  const handleSaveProfile = async () => {
+    if (!editName.trim()) {
+      Alert.alert("Invalid Input", "Name cannot be empty.");
+      return;
+    }
+    setIsSaving(true);
+    const success = await updateProfile({
+      name: editName.trim(),
+      email: editEmail.trim(),
+      profileImage: pickedPhoto,
+    });
+    setIsSaving(false);
+    if (success) {
+      setEditModalVisible(false);
+      Alert.alert("Success", "Profile updated successfully!");
+    }
   };
 
   const handleSubmitFeedback = () => {
@@ -47,24 +185,41 @@ const StatsScreen = ({ navigation }) => {
         <Header />
 
         <View style={styles.profileHeader}>
-          <AvatarInitials
-            name={profileName}
-            size={80}
-            fontSize={26}
-            bgColor="#2D5A3C"
-            textColor="#FFFFFF"
-            style={{ borderWidth: 3, borderColor: colors.surface, marginRight: 20 }}
-          />
+          {user?.profileImage ? (
+            <Image
+              source={{ uri: user.profileImage }}
+              style={{ width: 80, height: 80, borderRadius: 40, borderWidth: 3, borderColor: colors.surface, marginRight: 20 }}
+            />
+          ) : (
+            <AvatarInitials
+              name={profileName}
+              size={80}
+              fontSize={26}
+              bgColor="#2D5A3C"
+              textColor="#FFFFFF"
+              style={{ borderWidth: 3, borderColor: colors.surface, marginRight: 20 }}
+            />
+          )}
           <View style={styles.profileInfo}>
             <Text style={[FONTS.h2, { color: colors.text, fontSize: 24 }]}>{profileName}</Text>
             <Text style={[FONTS.body2, { color: colors.textSecondary }]}>{profileEmail}</Text>
             <TouchableOpacity 
               style={[styles.editProfileBtn, { backgroundColor: colors.primary, borderColor: colors.primary }]}
-              onPress={() => { setEditName(profileName); setEditEmail(profileEmail); setEditModalVisible(true); }}
+              onPress={() => { setEditName(profileName); setEditEmail(profileEmail); setPickedPhoto(user?.profileImage || null); setEditModalVisible(true); }}
             >
               <FontAwesome5 name="pen" size={10} color="#FFF" style={{ marginRight: 6 }} />
               <Text style={[FONTS.subtitle, { color: '#FFF' }]}>EDIT PROFILE</Text>
             </TouchableOpacity>
+            {/* Admin Panel shortcut — visible only to admin */}
+            {(user?.isAdmin || user?.email === 'admin@planetto.space') && (
+              <TouchableOpacity
+                style={[styles.adminShortcut, { borderColor: colors.primary, backgroundColor: colors.primary + '15' }]}
+                onPress={() => navigation.navigate('AdminPanel')}
+              >
+                <FontAwesome5 name="user-shield" size={10} color={colors.primary} solid />
+                <Text style={[FONTS.subtitle, { color: colors.primary, marginLeft: 6, fontSize: 9 }]}>ADMIN PANEL</Text>
+              </TouchableOpacity>
+            )}
           </View>
         </View>
 
@@ -98,7 +253,7 @@ const StatsScreen = ({ navigation }) => {
               </View>
             </View>
             <View style={[styles.qualityTextWrap, { backgroundColor: `${colors.primary}1A` }]}>
-               <Text style={[FONTS.body2, { color: colors.primary }]}>{stats?.focusQuality < 100 ? 'Keep up the good work!' : 'Perfect focus quality.'}</Text>
+               <Text style={[FONTS.body2, { color: colors.primary }]}>{(stats?.focusQuality || 100) < 100 ? 'Keep up the good work!' : 'Perfect focus quality.'}</Text>
             </View>
           </View>
         </GlassCard>
@@ -106,12 +261,20 @@ const StatsScreen = ({ navigation }) => {
         <GlassCard style={styles.growthCard}>
           <Text style={[styles.cardTitle, { color: colors.text }]}>Consistent Growth</Text>
           <View style={styles.heatMapContainer}>
-             {[...Array(30)].map((_, i) => (
-                <View key={i} style={[
-                  styles.heatSquare, 
-                  { backgroundColor: Math.random() > 0.5 ? colors.primary : (isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)') }
-                ]} />
-             ))}
+             {gridData.map((day, index) => {
+               let bgColor = isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)';
+               if (day.count > 0) {
+                 bgColor = day.count >= 3 ? colors.primary : `${colors.primary}55`;
+               }
+               return (
+                 <TouchableOpacity 
+                   key={index} 
+                   style={[styles.heatSquare, { backgroundColor: bgColor }]} 
+                   onPress={() => handleBoxClick(day.displayDate, day.count)}
+                   activeOpacity={0.7}
+                 />
+               );
+             })}
           </View>
           <View style={[styles.growthStatPill, { backgroundColor: colors.background, borderColor: colors.surfaceBorder }]}>
              <FontAwesome5 name="fire" color={colors.primary} size={12} />
@@ -125,15 +288,23 @@ const StatsScreen = ({ navigation }) => {
         <GlassCard style={{ marginBottom: 20 }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20 }}>
              <Text style={[styles.cardTitle, { color: colors.text }]}>Weekly Focus</Text>
-             <Text style={[FONTS.h2, { color: colors.primary }]}>{stats?.focusTimeToday || 0}h <Text style={[FONTS.body2, { color: colors.textMuted }]}>today</Text></Text>
+             <Text style={[FONTS.h2, { color: colors.primary }]}>{formatFocusTime(stats?.focusTimeToday || 0)} <Text style={[FONTS.body2, { color: colors.textMuted }]}>today</Text></Text>
           </View>
-          <Svg height="80" width="100%" viewBox="0 0 300 80">
-            <Path d="M0,60 Q40,40 80,60 T160,30 T240,50 T300,20" fill="none" stroke={colors.primary} strokeWidth="3" strokeLinecap="round" />
-            <Path d="M0,60 Q40,40 80,60 T160,30 T240,50 T300,20 L300,80 L0,80 Z" fill={`${colors.primary}1A`} />
-          </Svg>
+          {activeDays < 7 ? (
+            <View style={{ height: 80, justifyContent: 'center', alignItems: 'center' }}>
+              <Text style={[FONTS.body2, { color: colors.textSecondary, textAlign: 'center' }]}>
+                Need {7 - activeDays} more active day{7 - activeDays !== 1 ? 's' : ''} for the weekly graph.
+              </Text>
+            </View>
+          ) : (
+            <Svg height="80" width="100%" viewBox="0 0 300 80">
+              <Path d={pathD} fill="none" stroke={colors.primary} strokeWidth="3" strokeLinecap="round" />
+              <Path d={fillD} fill={`${colors.primary}1A`} />
+            </Svg>
+          )}
         </GlassCard>
 
-        <LinearGradient colors={['#7E52E8', '#5234A5']} style={[styles.streakCard, { borderRadius: 24, padding: 20, marginBottom: 20 }]}>
+        <LinearGradient colors={['#1B4332', '#2D6A4F']} style={[styles.streakCard, { borderRadius: 24, padding: 20, marginBottom: 20 }]}>
           <FontAwesome5 name="star" color="#FFF" size={20} style={{ alignSelf: 'flex-end' }} />
           <Text style={[FONTS.h1, { fontSize: 48, color: '#FFF', marginVertical: 10 }]}>{stats?.dayStreak || 0}</Text>
           <Text style={[FONTS.body1, { color: '#FFF' }]}>Day Streak</Text>
@@ -145,18 +316,41 @@ const StatsScreen = ({ navigation }) => {
 
         <GlassCard style={{ marginBottom: 20 }}>
           <Text style={[styles.cardTitle, { color: colors.text }]}>Subject Allocation</Text>
-          <SubjectBar title="Biology" percent="40%" pColor={colors.primary} width="60%" colors={colors} />
-          <SubjectBar title="Quantum Computing" percent="30%" pColor={colors.secondary} width="40%" colors={colors} />
-          <SubjectBar title="Deep Learning" percent="20%" pColor={colors.accent} width="25%" colors={colors} />
-          <SubjectBar title="Literature" percent="10%" pColor={colors.textMuted} width="10%" colors={colors} />
+          {allocatedSubjects.length === 0 ? (
+            <Text style={[FONTS.body2, { color: colors.textSecondary, textAlign: 'center', marginVertical: 10 }]}>
+              No subjects allocated yet. Add tasks with subjects to see your allocation.
+            </Text>
+          ) : (
+            allocatedSubjects.map((sub, idx) => (
+              <SubjectBar 
+                key={idx}
+                title={sub.title} 
+                percent={sub.percent} 
+                pColor={sub.pColor} 
+                width={sub.width} 
+                colors={colors} 
+              />
+            ))
+          )}
         </GlassCard>
+
+        {/* Admin Panel — bottom section, full-width button */}
+        {(user?.isAdmin || user?.email === 'admin@planetto.space') && (
+          <TouchableOpacity
+            style={[styles.adminPanelBtn, { backgroundColor: colors.surface, borderColor: colors.primary }]}
+            onPress={() => navigation.navigate('AdminPanel')}
+          >
+            <FontAwesome5 name="shield-alt" size={14} color={colors.primary} solid />
+            <Text style={[FONTS.subtitle, { color: colors.primary, marginLeft: 10 }]}>ADMIN PANEL</Text>
+          </TouchableOpacity>
+        )}
 
         <TouchableOpacity 
           style={[styles.logoutBtn, { borderColor: colors.danger }]} 
           onPress={() => navigation.replace('Login')}
         >
-           <FontAwesome5 name="sign-out-alt" color={colors.danger} size={14} />
-           <Text style={[FONTS.subtitle, { color: colors.danger, marginLeft: 10 }]}>LOGOUT SECURELY</Text>
+          <FontAwesome5 name="sign-out-alt" color={colors.danger} size={14} />
+          <Text style={[FONTS.subtitle, { color: colors.danger, marginLeft: 10 }]}>LOGOUT SECURELY</Text>
         </TouchableOpacity>
 
         <TouchableOpacity 
@@ -182,15 +376,25 @@ const StatsScreen = ({ navigation }) => {
             </View>
 
             <View style={styles.avatarEditRow}>
-              <AvatarInitials
-                name={editName}
-                size={70}
-                fontSize={22}
-                bgColor="#2D5A3C"
-                textColor="#FFFFFF"
-                style={{ borderWidth: 2, borderColor: colors.surfaceBorder, marginBottom: 12 }}
-              />
-              <TouchableOpacity style={[styles.changePhotoBtn, { backgroundColor: `${colors.primary}22`, borderColor: colors.primary }]}>
+              {pickedPhoto ? (
+                <Image
+                  source={{ uri: pickedPhoto }}
+                  style={{ width: 70, height: 70, borderRadius: 35, borderWidth: 2, borderColor: colors.surfaceBorder, marginBottom: 12 }}
+                />
+              ) : (
+                <AvatarInitials
+                  name={editName}
+                  size={70}
+                  fontSize={22}
+                  bgColor="#2D5A3C"
+                  textColor="#FFFFFF"
+                  style={{ borderWidth: 2, borderColor: colors.surfaceBorder, marginBottom: 12 }}
+                />
+              )}
+              <TouchableOpacity 
+                onPress={handleChangePhoto}
+                style={[styles.changePhotoBtn, { backgroundColor: `${colors.primary}22`, borderColor: colors.primary }]}
+              >
                 <FontAwesome5 name="camera" size={12} color={colors.primary} />
                 <Text style={[FONTS.subtitle, { color: colors.primary, marginLeft: 6, fontSize: 10 }]}>CHANGE PHOTO</Text>
               </TouchableOpacity>
@@ -229,8 +433,16 @@ const StatsScreen = ({ navigation }) => {
               <TouchableOpacity style={styles.modalBtnCancel} onPress={() => setEditModalVisible(false)}>
                 <Text style={[styles.modalBtnCancelTxt, { color: colors.textMuted }]}>CANCEL</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.modalBtnSave, { backgroundColor: colors.primary }]} onPress={handleSaveProfile}>
-                <Text style={[styles.modalBtnSaveTxt, { color: '#FFF' }]}>SAVE CHANGES</Text>
+              <TouchableOpacity 
+                style={[styles.modalBtnSave, { backgroundColor: colors.primary }]} 
+                onPress={handleSaveProfile}
+                disabled={isSaving}
+              >
+                {isSaving ? (
+                  <ActivityIndicator size="small" color="#FFF" />
+                ) : (
+                  <Text style={[styles.modalBtnSaveTxt, { color: '#FFF' }]}>SAVE CHANGES</Text>
+                )}
               </TouchableOpacity>
             </View>
           </View>
@@ -309,8 +521,10 @@ const styles = StyleSheet.create({
   profileAvatar: { width: 80, height: 80, borderRadius: 40, borderWidth: 3, marginRight: 20 },
   profileInfo: { flex: 1 },
   editProfileBtn: { marginTop: 12, paddingVertical: 8, paddingHorizontal: 14, borderRadius: 12, borderWidth: 1, alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center' },
+  adminShortcut: { marginTop: 8, paddingVertical: 6, paddingHorizontal: 12, borderRadius: 10, borderWidth: 1, alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center' },
   logoutBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 18, borderRadius: 16, borderWidth: 1, marginBottom: 15 },
   feedbackBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 18, borderRadius: 16, borderWidth: 1, marginBottom: 20 },
+  adminPanelBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 18, borderRadius: 16, borderWidth: 1.5, marginBottom: 15 },
   // Modal styles
   modalBg: { flex: 1, justifyContent: 'center', padding: 20 },
   modalContent: { borderRadius: 24, padding: 25, borderWidth: 1 },

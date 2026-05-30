@@ -1,0 +1,42 @@
+diff --git a/node_modules/@expo/vector-icons/build/createIconSet.js b/node_modules/@expo/vector-icons/build/createIconSet.js
+index 48982ea..5e8ee76 100644
+--- a/node_modules/@expo/vector-icons/build/createIconSet.js
++++ b/node_modules/@expo/vector-icons/build/createIconSet.js
+@@ -52,15 +52,17 @@ export default function (glyphMap, fontName, expoAssetId, fontStyle) {
+         };
+         _mounted = false;
+         _icon;
+-        state = {
+-            fontIsLoaded: Font.isLoaded(fontName),
+-        };
+         async componentDidMount() {
+             this._mounted = true;
+-            if (!this.state.fontIsLoaded) {
+-                await Font.loadAsync(font);
+-                /* eslint-disable react/no-did-mount-set-state */
+-                this._mounted && this.setState({ fontIsLoaded: true });
++            // Try to register font with expo-font in background (non-blocking).
++            // Fonts are already available natively via assets/fonts/ so icons render
++            // immediately — this just keeps expo-font's isLoaded() cache in sync.
++            try {
++                if (!Font.isLoaded(fontName)) {
++                    await Font.loadAsync(font);
++                }
++            } catch (e) {
++                // Font.loadAsync failed — OK, native assets/fonts/ already has the font.
+             }
+         }
+         componentWillUnmount() {
+@@ -75,9 +77,9 @@ export default function (glyphMap, fontName, expoAssetId, fontStyle) {
+             if (__DEV__ && this.props.name && !(this.props.name in glyphMap)) {
+                 console.warn(`"${this.props.name}" is not a valid icon name for family "${fontName}"`);
+             }
+-            if (!this.state.fontIsLoaded) {
+-                return <Text />;
+-            }
++            // PATCHED: Always render — removed the Font.isLoaded() guard that caused
++            // blank icons when Font.loadAsync() failed silently on Android native builds.
++            // Fonts are available natively from assets/fonts/FontAwesome5Free-*.ttf
+             return (<RNVIconComponent ref={(view) => {
+                     this._icon = view;
+                 }} {...this.props}/>);

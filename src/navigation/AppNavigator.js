@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, View, Text } from 'react-native';
+import { View } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { FontAwesome5 } from '@expo/vector-icons';
@@ -14,13 +14,15 @@ import FocusScreen from '../screens/FocusScreen';
 import StatsScreen from '../screens/StatsScreen';
 import RoomsScreen from '../screens/RoomsScreen';
 import MyClassesScreen from '../screens/MyClassesScreen';
+import RoomDetailScreen from '../screens/RoomDetailScreen';
+import AdminPanelScreen from '../screens/AdminPanelScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
 const MainApp = () => {
   const { colors, isDarkMode } = useTheme();
-  
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -55,7 +57,6 @@ const MainApp = () => {
         },
         tabBarIcon: ({ focused }) => {
           let iconName;
-
           if (route.name === 'Home') iconName = 'th-large';
           else if (route.name === 'Tasks') iconName = 'check-circle';
           else if (route.name === 'Focus') iconName = 'stopwatch';
@@ -97,6 +98,8 @@ const AppNavigator = () => {
       <Stack.Screen name="Login" component={LoginScreen} />
       <Stack.Screen name="MainApp" component={MainApp} />
       <Stack.Screen name="MyClasses" component={MyClassesScreen} />
+      <Stack.Screen name="RoomDetail" component={RoomDetailScreen} />
+      <Stack.Screen name="AdminPanel" component={AdminPanelScreen} />
     </Stack.Navigator>
   );
 };

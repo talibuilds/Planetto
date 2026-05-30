@@ -15,11 +15,27 @@ import { useAuth } from '../context/AuthContext';
 const DashboardScreen = ({ navigation }) => {
   const { colors, isDarkMode } = useTheme();
   const { user } = useAuth();
-  const { stats, tasks, toggleTaskCompletion, addTask } = useData();
+  const { stats, tasks, toggleTaskCompletion, addTask, formatFocusTime } = useData();
   const [newTodoTitle, setNewTodoTitle] = useState('');
+  const [showAllTodos, setShowAllTodos] = useState(false);
 
   // To-Dos are tasks without a due date
   const todoTasks = useMemo(() => tasks.filter(t => !t.dueDate), [tasks]);
+
+  const displayTodos = useMemo(() => {
+    let pending = todoTasks.filter(t => !t.isCompleted);
+    let completed = todoTasks.filter(t => t.isCompleted);
+
+    if (showAllTodos) {
+      return [...pending, ...completed];
+    } else {
+      if (todoTasks.length > 4) {
+        return pending.slice(0, 4);
+      } else {
+        return [...pending, ...completed];
+      }
+    }
+  }, [todoTasks, showAllTodos]);
 
   const handleAddTodo = () => {
     if (!newTodoTitle.trim()) return;
@@ -35,7 +51,13 @@ const DashboardScreen = ({ navigation }) => {
 
   const assignments = useMemo(() => tasks.filter(t => t.dueDate), [tasks]);
 
-  const pendingTasks = assignments.filter(t => !t.isCompleted).slice(0, 3);
+  const todayIso = new Date().toISOString().split('T')[0];
+  const upcomingDeadlines = useMemo(() => {
+    return assignments
+      .filter(t => !t.isCompleted && t.dueDate && t.dueDate.split('T')[0] >= todayIso)
+      .sort((a, b) => a.dueDate.localeCompare(b.dueDate))
+      .slice(0, 3);
+  }, [assignments, todayIso]);
   
   const totalTasks = assignments.length;
   const completedTasks = assignments.filter(t => t.isCompleted).length;
@@ -124,7 +146,7 @@ const DashboardScreen = ({ navigation }) => {
               <FontAwesome5 name="clock" color={colors.text} size={12} />
             </View>
             <Text style={[styles.statTrend, { color: colors.primary }]}>+12%</Text>
-            <Text style={[styles.statValue, { color: colors.text }]}>{stats.focusTimeToday}h</Text>
+            <Text style={[styles.statValue, { color: colors.text }]}>{formatFocusTime(stats.focusTimeToday)}</Text>
             <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Focus Time Today</Text>
           </GlassCard>
           
@@ -146,11 +168,11 @@ const DashboardScreen = ({ navigation }) => {
           </TouchableOpacity>
         </View>
 
-        {pendingTasks.length === 0 && (
-          <Text style={[FONTS.body2, { textAlign: 'center', marginVertical: 10, color: colors.textSecondary }]}>All caught up!</Text>
+        {upcomingDeadlines.length === 0 && (
+          <Text style={[FONTS.body2, { textAlign: 'center', marginVertical: 10, color: colors.textSecondary }]}>All caught up on upcoming deadlines!</Text>
         )}
 
-        {pendingTasks.map(t => (
+        {upcomingDeadlines.map(t => (
           <TouchableOpacity activeOpacity={0.8} key={t.id} onPress={() => navigation.navigate('Tasks')}>
             <GlassCard style={styles.taskItem} padding={15}>
               <View style={[styles.taskIndicator, {backgroundColor: t.priority === 'HIGH' ? '#F44336' : colors.primary}]} />
@@ -163,30 +185,39 @@ const DashboardScreen = ({ navigation }) => {
           </TouchableOpacity>
         ))}
 
-        {/* Today's To-Do */}
+        {/* Unscheduled / Quick Tasks */}
         <View style={[styles.sectionHeaderRow, { marginTop: 15 }]}>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <FontAwesome5 name="clipboard-check" color={colors.primary} size={16} />
-            <Text style={[FONTS.h3, { color: colors.text, marginLeft: 8 }]}>Daily To-Do</Text>
+            <Text style={[FONTS.h3, { color: colors.text, marginLeft: 8 }]}>Quick Tasks</Text>
           </View>
-          <Text style={[styles.viewAllBtn, { color: colors.textMuted }]}>
-            {todoTasks.filter(t => t.isCompleted).length}/{todoTasks.length} done
-          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+            <Text style={[styles.viewAllBtn, { color: colors.textMuted, fontSize: 11, fontWeight: '500' }]}>
+              {todoTasks.filter(t => t.isCompleted).length}/{todoTasks.length} done
+            </Text>
+            {todoTasks.length > 4 && (
+              <TouchableOpacity onPress={() => setShowAllTodos(!showAllTodos)}>
+                <Text style={[styles.viewAllBtn, { color: colors.textMuted }]}>
+                  {showAllTodos ? 'Show Less' : 'View All >'}
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
-
+ 
         <GlassCard style={{ paddingVertical: 8, paddingHorizontal: 15, marginBottom: 20 }}>
           {todoTasks.length === 0 ? (
             <View style={{ alignItems: 'center', paddingVertical: 20 }}>
               <FontAwesome5 name="check-double" size={20} color={colors.textMuted} style={{ marginBottom: 10 }} />
-              <Text style={[FONTS.body2, { color: colors.textSecondary, textAlign: 'center' }]}>No to-dos yet.{"\n"}Add one below.</Text>
+              <Text style={[FONTS.body2, { color: colors.textSecondary, textAlign: 'center' }]}>No quick tasks yet.{"\n"}Add one below.</Text>
             </View>
           ) : (
-            todoTasks.map((t, idx) => (
+            displayTodos.map((t, idx) => (
               <TouchableOpacity
                 key={t.id}
                 activeOpacity={0.7}
                 onPress={() => toggleTaskCompletion(t.id)}
-                style={[styles.todoRow, idx < todoTasks.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.surfaceBorder }]}
+                style={[styles.todoRow, idx < displayTodos.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.surfaceBorder }]}
               >
                 <View style={[styles.todoCheckbox, t.isCompleted && { backgroundColor: colors.primary, borderColor: colors.primary }]}>
                   {t.isCompleted && <FontAwesome5 name="check" size={9} color="#FFF" />}
@@ -204,14 +235,19 @@ const DashboardScreen = ({ navigation }) => {
               <FontAwesome5 name="plus" size={10} color={colors.textMuted} />
             </View>
             <TextInput
-              style={{ flex: 1, ...FONTS.body2, color: colors.text, fontSize: 14 }}
-              placeholder="Add a new to-do..."
+              style={{ flex: 1, ...FONTS.body2, color: colors.text, fontSize: 14, paddingRight: 10 }}
+              placeholder="Add a new quick task..."
               placeholderTextColor={colors.textMuted}
               value={newTodoTitle}
               onChangeText={setNewTodoTitle}
               onSubmitEditing={handleAddTodo}
               returnKeyType="done"
             />
+            {newTodoTitle.trim().length > 0 && (
+              <TouchableOpacity onPress={handleAddTodo} style={{ paddingHorizontal: 10, paddingVertical: 5 }}>
+                <FontAwesome5 name="arrow-right" size={14} color={colors.primary} />
+              </TouchableOpacity>
+            )}
           </View>
         </GlassCard>
 

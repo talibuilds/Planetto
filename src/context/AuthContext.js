@@ -1,13 +1,13 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform, Alert } from 'react-native';
-import { apiClient } from '../api/client';
+import { apiClient, setApiUserId } from '../api/client';
 
 const AuthContext = createContext();
 
 export const useAuth = () => useContext(AuthContext);
 
-const GOOGLE_WEB_CLIENT_ID = '560704566589-dq97rp022tdnd77jn82fj5r4hmggnvhd.apps.googleusercontent.com';
+const GOOGLE_WEB_CLIENT_ID = '548910505461-e6vu7gnc7hbrj64277tsj4um11ob46m5.apps.googleusercontent.com';
 
 const isWeb = Platform.OS === 'web';
 
@@ -39,6 +39,7 @@ export const AuthProvider = ({ children }) => {
     if (GoogleSignin) {
       GoogleSignin.configure({
         webClientId: GOOGLE_WEB_CLIENT_ID,
+        iosClientId: '548910505461-qhvf50ncsh5i7ana0mhiqe3lsbmdng5k.apps.googleusercontent.com',
         offlineAccess: true,
       });
     }
@@ -48,7 +49,9 @@ export const AuthProvider = ({ children }) => {
       try {
         const storedUser = await AsyncStorage.getItem('@planetto_user');
         if (storedUser) {
-          setUser(JSON.parse(storedUser));
+          const u = JSON.parse(storedUser);
+          setUser(u);
+          setApiUserId(u?.id ?? null);
         }
       } catch (e) {
         console.error('Failed to load session', e);
@@ -65,6 +68,7 @@ export const AuthProvider = ({ children }) => {
       const response = await apiClient.post('/auth/login', { email, password });
       if (response.data.success) {
         setUser(response.data.data);
+        setApiUserId(response.data.data?.id ?? null);
         await AsyncStorage.setItem('@planetto_user', JSON.stringify(response.data.data));
         return true;
       }
@@ -79,6 +83,7 @@ export const AuthProvider = ({ children }) => {
       const response = await apiClient.post('/auth/register', { name, email, password });
       if (response.data.success) {
         setUser(response.data.data);
+        setApiUserId(response.data.data?.id ?? null);
         await AsyncStorage.setItem('@planetto_user', JSON.stringify(response.data.data));
         return true;
       }
@@ -91,6 +96,26 @@ export const AuthProvider = ({ children }) => {
   // ─── Google Sign-In for WEB ─────────────────────────────────────────
   const googleLoginWeb = () => {
     return new Promise((resolve) => {
+      if (window.confirm('Would you like to simulate Google Login for development? (Select Cancel to use real Google Sign-In)')) {
+        const mockToken = 'mock-developer@planetto.space-Developer User-dev12345';
+        apiClient.post('/auth/google', { idToken: mockToken })
+          .then(async (response) => {
+            if (response.data.success) {
+              setUser(response.data.data);
+              await AsyncStorage.setItem('@planetto_user', JSON.stringify(response.data.data));
+              resolve(true);
+            } else {
+              resolve(false);
+            }
+          })
+          .catch((err) => {
+            console.error('Mock Google login error:', err);
+            showAlert('Mock Login Failed', err.response?.data?.message || 'Network error');
+            resolve(false);
+          });
+        return;
+      }
+
       // Load the Google Identity Services script dynamically
       if (document.getElementById('google-gsi-script')) {
         triggerGooglePrompt(resolve);
@@ -182,8 +207,39 @@ export const AuthProvider = ({ children }) => {
   const googleLoginNative = async () => {
     try {
       if (!GoogleSignin) {
-        showAlert('Not Available', 'Google Sign-In requires a native build.');
-        return false;
+        return new Promise((resolve) => {
+          Alert.alert(
+            'Native Build Required',
+            'Google Sign-In requires a native build. Would you like to simulate Google Login for development?',
+            [
+              {
+                text: 'Cancel',
+                onPress: () => resolve(false),
+                style: 'cancel',
+              },
+              {
+                text: 'Simulate',
+                onPress: async () => {
+                  try {
+                    const mockToken = 'mock-developer@planetto.space-Developer User-dev12345';
+                    const response = await apiClient.post('/auth/google', { idToken: mockToken });
+                    if (response.data.success) {
+                      setUser(response.data.data);
+                      await AsyncStorage.setItem('@planetto_user', JSON.stringify(response.data.data));
+                      resolve(true);
+                    } else {
+                      resolve(false);
+                    }
+                  } catch (err) {
+                    console.error('Mock Google login error:', err);
+                    showAlert('Mock Login Failed', err.response?.data?.message || 'Network error');
+                    resolve(false);
+                  }
+                },
+              },
+            ]
+          );
+        });
       }
       await GoogleSignin.hasPlayServices();
       const userInfo = await GoogleSignin.signIn();
@@ -224,8 +280,25 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const updateProfile = async (updates) => {
+    if (!user) return false;
+    try {
+      const response = await apiClient.patch(`/auth/profile/${user.id}`, updates);
+      if (response.data.success) {
+        const updatedUser = response.data.data;
+        setUser(updatedUser);
+        await AsyncStorage.setItem('@planetto_user', JSON.stringify(updatedUser));
+        return true;
+      }
+    } catch (e) {
+      console.error('Failed to update profile', e);
+      showAlert('Update Failed', e.response?.data?.message || 'Network error');
+      return false;
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, register, googleLogin, logout }}>
+    <AuthContext.Provider value={{ user, isLoading, login, register, googleLogin, logout, updateProfile }}>
       {children}
     </AuthContext.Provider>
   );

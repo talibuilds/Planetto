@@ -25,7 +25,7 @@ const isWeb = Platform.OS === 'web';
 
 const FocusScreen = () => {
   const { colors, isDarkMode } = useTheme();
-  const { tasks, stats, logFocusSession, toggleTaskCompletion, toggleFocusQueue } = useData();
+  const { tasks, stats, logFocusSession, toggleTaskCompletion, toggleFocusQueue, updateTaskSessions, incrementFocusTime } = useData();
   const [timeLeft, setTimeLeft] = useState(FOCUS_DURATION);
   const [isActive, setIsActive] = useState(false);
   const [isOnBreak, setIsOnBreak] = useState(false);
@@ -37,13 +37,16 @@ const FocusScreen = () => {
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const pulseAnimRef = useRef(null);
 
-  const focusTasks = tasks.filter(t => t.inFocusQueue && !t.completed);
+  const focusTasks = tasks.filter(t => t.inFocusQueue && !t.isCompleted);
 
   // Focus timer
   useEffect(() => {
     let interval = null;
     if (isActive && timeLeft > 0 && !isOnBreak) {
-      interval = setInterval(() => setTimeLeft(t => t - 1), 1000);
+      interval = setInterval(() => {
+        setTimeLeft(t => t - 1);
+        incrementFocusTime(1);
+      }, 1000);
     } else if (timeLeft === 0 && !isOnBreak) {
       clearInterval(interval);
       setIsActive(false);
@@ -51,28 +54,45 @@ const FocusScreen = () => {
       setPauses(0);
       
       const currentTask = focusTasks.length > 0 ? focusTasks[0] : null;
+      const nextSessionsCount = sessionsToday + 1;
 
-      if (isWeb) {
-        const msg = currentTask ? `Did you finish "${currentTask.title}"?` : 'Great work! Take a break?';
-        window.alert('🎉 Session Complete! ' + msg);
-        setTimeLeft(FOCUS_DURATION);
+      if (nextSessionsCount % 4 === 0 && currentTask) {
+        toggleFocusQueue(currentTask.id);
+        if (isWeb) {
+          window.alert(`🎉 Session Complete! You reached 4 focus sessions today. "${currentTask.title}" has been popped out of the focus queue, and the next task is queued.`);
+          setTimeLeft(FOCUS_DURATION);
+        } else {
+          Alert.alert(
+            '🎉 Session Complete!',
+            `You completed 4 focus sessions today! "${currentTask.title}" has been popped out of the focus queue, and the next task is queued.`,
+            [
+              { text: 'Awesome', onPress: () => setTimeLeft(FOCUS_DURATION) }
+            ]
+          );
+        }
       } else {
-        Alert.alert('🎉 Session Complete!', currentTask ? `Did you finish "${currentTask.title}"?` : 'Great work! Take a break?', [
-          { 
-            text: currentTask ? 'Yes, Mark Done' : 'Keep Going', 
-            onPress: () => { 
-              if (currentTask) toggleTaskCompletion(currentTask.id);
-              setTimeLeft(FOCUS_DURATION); 
-              setIsActive(true); 
-            } 
-          },
-          { 
-            text: currentTask ? 'No, Take Break' : 'Take a 5-min Break', 
-            onPress: () => {
-               startBreak();
-            } 
-          },
-        ]);
+        if (isWeb) {
+          const msg = currentTask ? `Did you finish "${currentTask.title}"?` : 'Great work! Take a break?';
+          window.alert('🎉 Session Complete! ' + msg);
+          setTimeLeft(FOCUS_DURATION);
+        } else {
+          Alert.alert('🎉 Session Complete!', currentTask ? `Did you finish "${currentTask.title}"?` : 'Great work! Take a break?', [
+            { 
+              text: currentTask ? 'Yes, Mark Done' : 'Keep Going', 
+              onPress: () => { 
+                if (currentTask) toggleTaskCompletion(currentTask.id);
+                setTimeLeft(FOCUS_DURATION); 
+                setIsActive(true); 
+              } 
+            },
+            { 
+              text: currentTask ? 'No, Take Break' : 'Take a 5-min Break', 
+              onPress: () => {
+                 startBreak();
+              } 
+            },
+          ]);
+        }
       }
     }
     return () => clearInterval(interval);
@@ -192,6 +212,7 @@ const FocusScreen = () => {
   const dynamicBackground = isDarkMode ? currentAtmosphere.bgDark : currentAtmosphere.bgLight;
 
   const sessionsToday = stats?.sessionsToday ?? 0;
+  const currentTask = focusTasks.length > 0 ? focusTasks[0] : null;
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: dynamicBackground }]}>
@@ -216,6 +237,11 @@ const FocusScreen = () => {
             </Svg>
 
             <View style={styles.timerAbsoluteCenter}>
+              {currentTask && (
+                <Text style={[FONTS.subtitle, { color: colors.primary, fontWeight: '700', fontSize: 10, letterSpacing: 1, marginBottom: 5, paddingHorizontal: 40, textAlign: 'center' }]} numberOfLines={1}>
+                  {currentTask.title.toUpperCase()}
+                </Text>
+              )}
               <Text style={[FONTS.subtitle, { letterSpacing: 2, color: isOnBreak ? colors.secondary : colors.textSecondary }]}>
                 {isOnBreak ? 'BREAK TIME' : isActive ? 'DEEP FOCUS' : 'FOCUS READY'}
               </Text>
@@ -232,7 +258,7 @@ const FocusScreen = () => {
             </View>
 
             <View style={[styles.sessionsBadge, { backgroundColor: colors.surface, borderColor: colors.surfaceBorder }]}>
-              <Text style={[FONTS.h3, { color: colors.primary }]}>{String(sessionsToday).padStart(2,'0')}/08</Text>
+              <Text style={[FONTS.h3, { color: colors.primary }]}>{String(sessionsToday).padStart(2,'0')}/{String(tasks.filter(t => t.inFocusQueue).reduce((acc, t) => acc + (t.sessionsRequired || 2), 0) || 4).padStart(2,'0')}</Text>
               <Text style={[FONTS.subtitle, { fontSize: 7, color: colors.textMuted, marginTop: 4 }]}>SESSIONS TODAY</Text>
             </View>
           </Animated.View>
@@ -294,10 +320,33 @@ const FocusScreen = () => {
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={[FONTS.h3, { fontSize: 14, color: colors.text }]} numberOfLines={1}>{item.title}</Text>
-                <Text style={[FONTS.body2, { fontSize: 11, marginTop: 3, color: isActiveTask ? colors.primary : colors.textSecondary }]} numberOfLines={1}>
-                  {isActiveTask ? "CURRENT TARGET" : item.subject}
-                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
+                  <Text style={[FONTS.body2, { fontSize: 11, color: isActiveTask ? colors.primary : colors.textSecondary }]} numberOfLines={1}>
+                    {isActiveTask ? "CURRENT TARGET" : item.subject}
+                  </Text>
+                  <Text style={[FONTS.subtitle, { fontSize: 10, color: colors.textMuted, marginLeft: 10 }]}>
+                    • {item.sessionsCompleted || 0}/{item.sessionsRequired || 2} sessions
+                  </Text>
+                </View>
               </View>
+              
+              {/* Sessions adjustment buttons */}
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginRight: 10, gap: 8 }}>
+                <TouchableOpacity 
+                  onPress={() => updateTaskSessions(item.id, -1)}
+                  style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: colors.surfaceLight || colors.surface, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: colors.surfaceBorder }}
+                >
+                  <FontAwesome5 name="minus" size={8} color={colors.textSecondary} />
+                </TouchableOpacity>
+                <Text style={[FONTS.h3, { fontSize: 12, color: colors.text }]}>{item.sessionsRequired || 2}</Text>
+                <TouchableOpacity 
+                  onPress={() => updateTaskSessions(item.id, 1)}
+                  style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: colors.surfaceLight || colors.surface, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: colors.surfaceBorder }}
+                >
+                  <FontAwesome5 name="plus" size={8} color={colors.textSecondary} />
+                </TouchableOpacity>
+              </View>
+
               <TouchableOpacity onPress={() => toggleFocusQueue(item.id)} style={{ padding: 8 }}>
                  <FontAwesome5 name="minus-circle" color={colors.textMuted} size={14} />
               </TouchableOpacity>
