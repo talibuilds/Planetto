@@ -128,17 +128,31 @@ const LoginScreen = ({ navigation }) => {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+      <KeyboardAvoidingView 
+        style={{ flex: 1 }} 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+      >
+        <ScrollView 
+          style={{ flex: 1 }} 
+          contentContainerStyle={[
+            styles.scrollContent, 
+            mode === 'signup' && { paddingVertical: 12, paddingBottom: 400 }
+          ]}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
 
-          {/* Logo */}
-          <View style={styles.logoContainer}>
-            <Image
-              source={logoImage}
-              style={{ width: 180, height: 180 }}
-              resizeMode="contain"
-            />
-          </View>
+          {/* Logo - only show in login mode to save vertical space */}
+          {mode === 'login' && (
+            <View style={styles.logoContainer}>
+              <Image
+                source={logoImage}
+                style={{ width: 180, height: 180 }}
+                resizeMode="contain"
+              />
+            </View>
+          )}
 
           {/* Mode Tabs */}
           <View style={[styles.modeTabs, { backgroundColor: colors.surface, borderColor: colors.surfaceBorder }]}>
@@ -283,7 +297,7 @@ const LoginScreen = ({ navigation }) => {
             </>
           )}
 
-          <View style={{ height: 40 }} />
+          <View style={{ height: 120 }} />
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>

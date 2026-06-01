@@ -53,9 +53,9 @@ const deadlineOptions = buildDeadlineOptions();
 
 const TasksScreen = () => {
   const { colors, isDarkMode } = useTheme();
-  const { tasks, addTask, toggleTaskCompletion, deleteTask, toggleFocusQueue } = useData();
-  const { stats } = useData();
-  const SESSION_GOAL = 8; // daily session target
+  const { tasks, addTask, toggleTaskCompletion, deleteTask, toggleFocusQueue, stats, formatFocusTime } = useData();
+  const focusQueueTasks = tasks.filter(t => t.inFocusQueue);
+  const SESSION_GOAL = focusQueueTasks.reduce((acc, t) => acc + (t.sessionsRequired || 2), 0) || 4;
   const [selectedDate, setSelectedDate] = useState(getIsoDate(today));
   const dateScrollRef = useRef(null);
 
@@ -75,7 +75,15 @@ const TasksScreen = () => {
 
   const selectedTasks = tasks.filter(t => {
     if (!t.dueDate) return false;
-    return t.dueDate.split('T')[0] === selectedDate;
+    const taskDate = t.dueDate.split('T')[0];
+    
+    // If we are looking at 'Today', show all pending tasks that are overdue as well
+    if (selectedDate === getIsoDate(today)) {
+      if (taskDate < selectedDate && !t.isCompleted) return true; // Overdue and pending
+      return taskDate === selectedDate; // Or exactly today
+    }
+    
+    return taskDate === selectedDate;
   });
   const activeTasks = selectedTasks.filter(t => !t.isCompleted);
   const finishedTasks = selectedTasks.filter(t => t.isCompleted);
@@ -262,7 +270,7 @@ const TasksScreen = () => {
             </View>
             <View style={{ width: 1, backgroundColor: 'rgba(0,0,0,0.07)' }} />
             <View style={{ alignItems: 'center', flex: 1 }}>
-              <Text style={[FONTS.h3, { color: colors.primary }]}>{stats.focusTimeToday}h</Text>
+              <Text style={[FONTS.h3, { color: colors.primary }]}>{formatFocusTime(stats.focusTimeToday)}</Text>
               <Text style={[FONTS.subtitle, { fontSize: 9, color: colors.textMuted, marginTop: 3 }]}>FOCUS TIME</Text>
             </View>
             <View style={{ width: 1, backgroundColor: 'rgba(0,0,0,0.07)' }} />
@@ -417,7 +425,7 @@ const TasksScreen = () => {
       </Modal>
 
       {/* History Modal */}
-      <Modal visible={isHistoryModalVisible} transparent animationType="fade">
+      <Modal visible={isHistoryModalVisible} transparent animationType="fade" onRequestClose={() => setHistoryModalVisible(false)}>
         <View style={[styles.modalBg, { backgroundColor: isDarkMode ? 'rgba(11,14,23,0.85)' : 'rgba(0,0,0,0.5)' }]}>
           <View style={[styles.modalContent, { height: '80%', padding: 0, backgroundColor: colors.surface, borderColor: colors.surfaceBorder }]}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, borderBottomWidth: 1, borderColor: colors.surfaceBorder }}>

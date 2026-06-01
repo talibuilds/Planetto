@@ -9,7 +9,7 @@ const app = express();
 
 // ─── Global Middleware ─────────────────────────────────────────────────
 app.use(cors());                    // Allow cross-origin requests from the Expo app
-app.use(express.json());            // Parse JSON request bodies
+app.use(express.json({ limit: '10mb' }));            // Parse JSON request bodies (increased for base64 file uploads)
 app.use(express.urlencoded({ extended: true })); // Parse URL-encoded bodies
 
 // ─── API Routes ────────────────────────────────────────────────────────

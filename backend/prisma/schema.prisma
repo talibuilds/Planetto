@@ -17,6 +17,31 @@ enum Priority {
   HIGH
 }
 
+enum RoomType {
+  STUDY_GROUP
+  PROJECT_ROOM
+  CLASSROOM
+  ACCOUNTABILITY_POD
+}
+
+enum RoomMemberRole {
+  ADMIN
+  MEMBER
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  DONE
+}
+
+enum MessageType {
+  TEXT
+  IMAGE
+  FILE
+  SYSTEM
+}
+
 // ─── User ──────────────────────────────────────────────
 model User {
   id            String         @id @default(uuid())
@@ -24,12 +49,25 @@ model User {
   password      String?
   googleId      String?        @unique @map("google_id")
   name          String?
+  profileImage  String?        @map("profile_image")
+  isAdmin       Boolean        @default(false) @map("is_admin")
   createdAt     DateTime       @default(now()) @map("created_at")
 
   // Relations
-  schedules     Schedule[]
-  tasks         Task[]
-  focusSessions FocusSession[]
+  schedules           Schedule[]
+  tasks               Task[]
+  focusSessions       FocusSession[]
+  loginRecords        LoginRecord[]
+  roomsCreated        Room[]                   @relation("RoomAdmin")
+  roomMemberships     RoomMember[]
+  roomMessages        RoomMessage[]
+  roomTasksCreated    RoomTask[]               @relation("TaskCreator")
+  roomTasksAssigned   RoomTask[]               @relation("TaskAssignee")
+  pomodoroSessions    RoomPomodoroSession[]    @relation("SessionStarter")
+  sessionParticipations RoomSessionParticipant[]
+  notifications       Notification[]
+  resourcesUploaded   RoomResource[]           @relation("ResourceUploader")
+  roomCheckins        RoomCheckIn[]            @relation("CheckInUser")
 
   @@map("users")
 }
@@ -57,16 +95,19 @@ model Schedule {
 
 // ─── Task ──────────────────────────────────────────────
 model Task {
-  id           String    @id @default(uuid())
-  userId       String    @map("user_id")
-  title        String
-  description  String?
-  subject      String    @default("General")
-  priority     Priority  @default(MED)
-  isCompleted  Boolean   @default(false) @map("is_completed")
-  inFocusQueue Boolean   @default(false) @map("in_focus_queue")
-  dueDate      DateTime? @map("due_date")
-  createdAt    DateTime  @default(now()) @map("created_at")
+  id                String    @id @default(uuid())
+  userId            String    @map("user_id")
+  title             String
+  description       String?
+  subject           String    @default("General")
+  priority          Priority  @default(MED)
+  isCompleted       Boolean   @default(false) @map("is_completed")
+  completedAt       DateTime? @map("completed_at")
+  inFocusQueue      Boolean   @default(false) @map("in_focus_queue")
+  sessionsRequired  Int       @default(2) @map("sessions_required")
+  sessionsCompleted Int       @default(0) @map("sessions_completed")
+  dueDate           DateTime? @map("due_date")
+  createdAt         DateTime  @default(now()) @map("created_at")
 
   // Relations
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -92,3 +133,207 @@ model FocusSession {
   @@map("focus_sessions")
 }
 
+// ─── Login Record ──────────────────────────────────────
+model LoginRecord {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  loginDate String   @map("login_date") // "YYYY-MM-DD"
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, loginDate])
+  @@index([userId])
+  @@map("login_records")
+}
+
+// ─── Room ──────────────────────────────────────────────
+model Room {
+  id               String     @id @default(uuid())
+  name             String
+  type             RoomType   @default(STUDY_GROUP)
+  description      String?
+  subject          String     @default("General")
+  emoji            String     @default("📚")
+  bannerColor      String     @default("#2D5016") @map("banner_color")
+  isPublic         Boolean    @default(true) @map("is_public")
+  isEnabled        Boolean    @default(true) @map("is_enabled")
+  inviteCode       String     @unique @map("invite_code")
+  inviteExpiresAt  DateTime?  @map("invite_expires_at")
+  inviteMaxUses    Int        @default(50) @map("invite_max_uses")
+  inviteUseCount   Int        @default(0) @map("invite_use_count")
+  maxMembers       Int        @default(20) @map("max_members")
+  deadline         DateTime?
+  adminId          String     @map("admin_id")
+  streakCount      Int        @default(0) @map("streak_count")
+  lastActiveDate   String?    @map("last_active_date") // "YYYY-MM-DD"
+  weeklyGoalSessions Int      @default(0) @map("weekly_goal_sessions")
+  createdAt        DateTime   @default(now()) @map("created_at")
+
+  // Relations
+  admin            User                   @relation("RoomAdmin", fields: [adminId], references: [id])
+  members          RoomMember[]
+  messages         RoomMessage[]
+  tasks            RoomTask[]
+  pomodoroSessions RoomPomodoroSession[]
+  resources        RoomResource[]
+  checkins         RoomCheckIn[]
+
+  @@index([adminId])
+  @@index([inviteCode])
+  @@map("rooms")
+}
+
+// ─── Room Member ───────────────────────────────────────
+model RoomMember {
+  id           String         @id @default(uuid())
+  roomId       String         @map("room_id")
+  userId       String         @map("user_id")
+  role         RoomMemberRole @default(MEMBER)
+  joinedAt     DateTime       @default(now()) @map("joined_at")
+  lastActiveAt DateTime?      @map("last_active_at")
+
+  // Relations
+  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([roomId, userId])
+  @@index([roomId])
+  @@index([userId])
+  @@map("room_members")
+}
+
+// ─── Room Message ──────────────────────────────────────
+model RoomMessage {
+  id        String      @id @default(uuid())
+  roomId    String      @map("room_id")
+  senderId  String      @map("sender_id")
+  content   String      @db.Text
+  type      MessageType @default(TEXT)
+  mediaUrl  String?     @map("media_url") @db.Text
+  isPinned  Boolean     @default(false) @map("is_pinned")
+  parentId  String?     @map("parent_id") // for threads
+  createdAt DateTime    @default(now()) @map("created_at")
+
+  // Relations
+  room   Room        @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  sender User        @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  parent RoomMessage? @relation("MessageThread", fields: [parentId], references: [id])
+  replies RoomMessage[] @relation("MessageThread")
+
+  @@index([roomId])
+  @@index([senderId])
+  @@map("room_messages")
+}
+
+// ─── Room Task ────────────────────────────────────────────────
+model RoomTask {
+  id           String     @id @default(uuid())
+  roomId       String     @map("room_id")
+  createdById  String     @map("created_by_id")
+  assigneeId   String?    @map("assignee_id")   // primary assignee (kept for backwards compat)
+  assigneeIds  String[]   @default([]) @map("assignee_ids") // all assignee user IDs
+  title        String
+  description  String?
+  status       TaskStatus @default(TODO)
+  priority     Priority   @default(MED)
+  dueDate      DateTime?  @map("due_date")
+  createdAt    DateTime   @default(now()) @map("created_at")
+
+  // Relations
+  room      Room  @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  createdBy User  @relation("TaskCreator", fields: [createdById], references: [id])
+  assignee  User? @relation("TaskAssignee", fields: [assigneeId], references: [id])
+
+  @@index([roomId])
+  @@map("room_tasks")
+}
+
+// ─── Room Pomodoro Session ─────────────────────────────
+model RoomPomodoroSession {
+  id              String    @id @default(uuid())
+  roomId          String    @map("room_id")
+  startedById     String    @map("started_by_id")
+  startedAt       DateTime  @default(now()) @map("started_at")
+  endedAt         DateTime? @map("ended_at")
+  isActive        Boolean   @default(true) @map("is_active")
+  durationMinutes Int       @default(25) @map("duration_minutes")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  // Relations
+  room         Room                     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  startedBy    User                     @relation("SessionStarter", fields: [startedById], references: [id])
+  participants RoomSessionParticipant[]
+
+  @@index([roomId])
+  @@map("room_pomodoro_sessions")
+}
+
+// ─── Room Session Participant ────────────────────────────────────────────
+model RoomSessionParticipant {
+  id        String   @id @default(uuid())
+  sessionId String   @map("session_id")
+  userId    String   @map("user_id")
+  joinedAt  DateTime @default(now()) @map("joined_at")
+
+  // Relations
+  session RoomPomodoroSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  user    User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, userId])
+  @@index([sessionId])
+  @@map("room_session_participants")
+}
+
+// ─── Notification ───────────────────────────────────────────────────
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  title     String
+  body      String
+  type      String   @default("INFO")  // JOIN, TASK_ASSIGNED, TASK_DONE
+  roomId    String?  @map("room_id")   // optional context
+  isRead    Boolean  @default(false)   @map("is_read")
+  createdAt DateTime @default(now())   @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, isRead])
+  @@map("notifications")
+}
+
+// ─── Room Resource ─────────────────────────────────────
+model RoomResource {
+  id          String   @id @default(uuid())
+  roomId      String   @map("room_id")
+  uploaderId  String   @map("uploader_id")
+  title       String
+  type        String   @default("LINK") // LINK, PDF, IMAGE, FILE
+  url         String   @db.Text
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  room     Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  uploader User @relation("ResourceUploader", fields: [uploaderId], references: [id])
+
+  @@index([roomId])
+  @@map("room_resources")
+}
+
+// ─── Room Check-In ─────────────────────────────────────
+model RoomCheckIn {
+  id        String   @id @default(uuid())
+  roomId    String   @map("room_id")
+  userId    String   @map("user_id")
+  date      String   // "YYYY-MM-DD"
+  note      String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user User @relation("CheckInUser", fields: [userId], references: [id])
+
+  @@unique([roomId, userId, date])
+  @@index([roomId])
+  @@map("room_checkins")
+}

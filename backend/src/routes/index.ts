@@ -3,6 +3,9 @@ import authRoutes from "./auth.routes";
 import taskRoutes from "./task.routes";
 import focusRoutes from "./focus.routes";
 import scheduleRoutes from "./schedule.routes";
+import roomRoutes from "./room.routes";
+import adminRoutes from "./admin.routes";
+import notificationRoutes from "./notification.routes";
 
 const router = Router();
 
@@ -23,5 +26,8 @@ router.use("/auth", authRoutes);
 router.use("/tasks", taskRoutes);
 router.use("/focus", focusRoutes);
 router.use("/schedules", scheduleRoutes);
+router.use("/rooms", roomRoutes);
+router.use("/admin", adminRoutes);
+router.use("/notifications", notificationRoutes);
 
 export default router;

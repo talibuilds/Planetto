@@ -3,27 +3,20 @@ import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView, Animated, 
 import { FontAwesome5 } from '@expo/vector-icons';
 import { FONTS, SIZES } from '../constants/theme';
 import { useTheme } from '../context/ThemeContext';
-
-const INITIAL_NOTIFICATIONS = [
-  { id: 'n1', icon: 'fire', title: '14-Day Streak!', body: 'You hit a new personal best streak. Keep it up!', time: '2m ago', read: false, color: '#FF6B35' },
-  { id: 'n2', icon: 'check-circle', title: 'Session Complete', body: 'You completed a 25-min focus session.', time: '18m ago', read: false, color: '#10B981' },
-  { id: 'n3', icon: 'user-friends', title: 'Elena joined your room', body: 'Elena V. joined "Deep Work Zone".', time: '1h ago', read: false, color: '#6366F1' },
-  { id: 'n4', icon: 'calendar-check', title: 'Task Due Soon', body: '"Quantum Physics Review" is due in 4 hours.', time: '2h ago', read: true, color: '#4ADE80' },
-  { id: 'n5', icon: 'brain', title: 'Smart Flow Tip', body: 'Your peak hours are 8–10 AM. Schedule hard tasks then!', time: '5h ago', read: true, color: '#6366F1' },
-];
+import { useData } from '../context/DataContext';
 
 const logoImage = require('../../assets/logo.png');
 
 const Header = ({ rightAction }) => {
   const { colors, isDarkMode, toggleTheme } = useTheme();
-  const [notifications, setNotifications] = useState(INITIAL_NOTIFICATIONS);
+  const { notifications, markAllNotificationsRead, markNotificationRead, clearAllNotifications } = useData();
   const [isNotifOpen, setNotifOpen] = useState(false);
 
-  const unreadCount = notifications.filter(n => !n.read).length;
+  const unreadCount = notifications ? notifications.filter(n => !n.read).length : 0;
 
-  const markAllRead = () => setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-  const markRead = (id) => setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
-  const clearAll = () => setNotifications([]);
+  const markAllRead = markAllNotificationsRead;
+  const markRead = markNotificationRead;
+  const clearAll = clearAllNotifications;
 
   return (
     <>
