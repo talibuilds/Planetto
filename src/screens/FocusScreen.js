@@ -25,12 +25,11 @@ const isWeb = Platform.OS === 'web';
 
 const FocusScreen = () => {
   const { colors, isDarkMode } = useTheme();
-  const { tasks, stats, logFocusSession, toggleTaskCompletion, toggleFocusQueue, updateTaskSessions, incrementFocusTime } = useData();
+  const { tasks, stats, logFocusSession, toggleTaskCompletion, toggleFocusQueue, updateTaskSessions, incrementFocusTime, isNotificationsBlocked, setIsNotificationsBlocked } = useData();
   const [timeLeft, setTimeLeft] = useState(FOCUS_DURATION);
   const [isActive, setIsActive] = useState(false);
   const [isOnBreak, setIsOnBreak] = useState(false);
   const [breakTimeLeft, setBreakTimeLeft] = useState(BREAK_DURATION);
-  const [isNotificationsBlocked, setIsNotificationsBlocked] = useState(true);
   const [selectedAtmosphere, setSelectedAtmosphere] = useState('void');
   const [pauses, setPauses] = useState(0);
   

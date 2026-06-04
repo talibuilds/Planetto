@@ -225,8 +225,9 @@ const MyClassesScreen = ({ navigation }) => {
 
     // Initialize stats from dummy base for active subjects
     allClassArr.forEach(c => {
-      let baseCode = c.code.replace(' LAB', '').replace(' TUTORIAL', '').replace(' TUT', '');
-      if (c.code === 'MAD LAB') baseCode = 'MAD LAB';
+      const safeCode = c.code || c.subject || 'UNKNOWN';
+      let baseCode = safeCode.replace(' LAB', '').replace(' TUTORIAL', '').replace(' TUT', '');
+      if (safeCode === 'MAD LAB') baseCode = 'MAD LAB';
 
       if (!stats[baseCode]) {
         const dummy = dummyStatsBase[baseCode] || { theoryPresent: 0, theoryAbsent: 0, labPresent: 0, labAbsent: 0 };
@@ -244,10 +245,11 @@ const MyClassesScreen = ({ navigation }) => {
 
     // Add active toggle states
     allClassArr.forEach(c => {
-      let isLab = c.code.includes('LAB');
-      let baseCode = c.code.replace(' LAB', '').replace(' TUTORIAL', '').replace(' TUT', '');
+      const safeCode = c.code || c.subject || 'UNKNOWN';
+      let isLab = safeCode.includes('LAB');
+      let baseCode = safeCode.replace(' LAB', '').replace(' TUTORIAL', '').replace(' TUT', '');
       
-      if (c.code === 'MAD LAB') {
+      if (safeCode === 'MAD LAB') {
         baseCode = 'MAD LAB';
         isLab = false;
       }
@@ -395,10 +397,22 @@ const MyClassesScreen = ({ navigation }) => {
           <FontAwesome5 name="arrow-left" size={20} color={colors.text} />
         </TouchableOpacity>
         <Text style={[FONTS.h2, { color: colors.text }]}>My Classes</Text>
-        <TouchableOpacity onPress={() => setShowAttendanceModal(true)} style={styles.headerActionBtn}>
-          <FontAwesome5 name="chart-pie" size={20} color={colors.primary} />
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
+          {/* AI Timetable Scanner */}
+          <TouchableOpacity
+            onPress={() => navigation.navigate('TimetableUpload')}
+            style={[styles.headerActionBtn, { backgroundColor: colors.primary + '18', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6, flexDirection: 'row', alignItems: 'center', gap: 6 }]}
+          >
+            <FontAwesome5 name="robot" size={14} color={colors.primary} />
+            <Text style={{ fontSize: 12, fontWeight: '700', color: colors.primary }}>Scan</Text>
+          </TouchableOpacity>
+          {/* Attendance stats */}
+          <TouchableOpacity onPress={() => setShowAttendanceModal(true)} style={styles.headerActionBtn}>
+            <FontAwesome5 name="chart-pie" size={20} color={colors.primary} />
+          </TouchableOpacity>
+        </View>
       </View>
+
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         
@@ -466,41 +480,6 @@ const MyClassesScreen = ({ navigation }) => {
           ))
         )}
 
-        {/* Timetable Upload Section */}
-        <View style={[styles.sectionHeader, { marginTop: 30 }]}>
-          <FontAwesome5 name="file-upload" size={18} color={colors.primary} />
-          <Text style={[FONTS.h2, styles.sectionTitle, { color: colors.text }]}>Update Timetable</Text>
-        </View>
-
-        <GlassCard style={styles.uploadCard}>
-          {isProcessing ? (
-            <View style={styles.processingContainer}>
-              <ActivityIndicator size="large" color={colors.primary} />
-              <Text style={[styles.processingTitle, { color: colors.text }]}>AI Processing</Text>
-              <Text style={[styles.processingSub, { color: colors.textSecondary }]}>Extracting subjects, rooms, and timings...</Text>
-            </View>
-          ) : showPreview ? (
-            <View style={styles.previewContainer}>
-              <FontAwesome5 name="check-circle" size={40} color="#4CAF50" style={{ marginBottom: 15 }} />
-              <Text style={[styles.previewTitle, { color: colors.text }]}>Timetable Synced Successfully!</Text>
-              <Text style={[styles.previewSub, { color: colors.textSecondary }]}>Extracted {Object.values(timetableData).flat().length} classes across 5 days.</Text>
-              <TouchableOpacity style={[styles.uploadBtn, { backgroundColor: colors.surfaceBorder }]} onPress={() => setShowPreview(false)}>
-                <Text style={[styles.uploadBtnText, { color: colors.text }]}>Upload Another</Text>
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <View style={styles.uploadContent}>
-              <View style={[styles.uploadIconCircle, { backgroundColor: colors.surfaceBorder }]}>
-                <FontAwesome5 name="image" size={30} color={colors.textMuted} />
-              </View>
-              <Text style={[styles.uploadDesc, { color: colors.textSecondary }]}>Upload an image or PDF of your new timetable to automatically sync it with Planetto.</Text>
-              <TouchableOpacity style={[styles.uploadBtn, { backgroundColor: colors.primary }]} onPress={handleUpload}>
-                <FontAwesome5 name="camera" size={14} color="#FFF" style={{ marginRight: 8 }} />
-                <Text style={[styles.uploadBtnText, { color: '#FFF' }]}>Upload Timetable</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-        </GlassCard>
 
         <View style={{ height: 50 }} />
       </ScrollView>

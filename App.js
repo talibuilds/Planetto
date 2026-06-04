@@ -7,12 +7,15 @@ import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import { AuthProvider } from './src/context/AuthContext';
 import { DataProvider } from './src/context/DataContext';
 
+import NotificationToast from './src/components/NotificationToast';
+
 const AppContent = memo(() => {
   const { isDarkMode } = useTheme();
   return (
     <>
       <StatusBar style={isDarkMode ? "light" : "dark"} translucent />
       <AppNavigator />
+      <NotificationToast />
     </>
   );
 });

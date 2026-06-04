@@ -28,7 +28,6 @@
       "favicon": "./assets/logo.png"
     },
     "plugins": [
-      "expo-audio",
       [
         "@react-native-google-signin/google-signin",
         {

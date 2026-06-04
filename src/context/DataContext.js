@@ -34,6 +34,8 @@ export const DataProvider = ({ children }) => {
   });
   const [extraFocusSeconds, setExtraFocusSeconds] = useState(0);
   const [notifications, setNotifications] = useState([]);
+  const [latestNotification, setLatestNotification] = useState(null);
+  const [isNotificationsBlocked, setIsNotificationsBlocked] = useState(false);
 
   // Fetch tasks and stats when user logs in
   useEffect(() => {
@@ -117,6 +119,9 @@ export const DataProvider = ({ children }) => {
       color,
     };
     setNotifications(prev => [newNotif, ...prev]);
+    if (!isNotificationsBlocked) {
+      setLatestNotification(newNotif);
+    }
   };
 
   const fetchTasks = async () => {
@@ -372,7 +377,9 @@ export const DataProvider = ({ children }) => {
       tasks, addTask, toggleTaskCompletion, deleteTask, toggleFocusQueue, updateTaskSessions,
       stats: computedStats, logFocusSession, incrementFocusTime, formatFocusTime,
       rooms, joinedRooms, toggleRoomJoin, addRoom,
-      notifications, markAllNotificationsRead, markNotificationRead, clearAllNotifications, addNotification
+      notifications, markAllNotificationsRead, markNotificationRead, clearAllNotifications, addNotification,
+      isNotificationsBlocked, setIsNotificationsBlocked,
+      latestNotification, setLatestNotification
     }}>
       {children}
     </DataContext.Provider>

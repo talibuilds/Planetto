@@ -66,6 +66,6 @@ export const adminApi = {
 export const notificationsApi = {
   getAll: () => apiClient.get('/notifications'),
   markAllRead: () => apiClient.patch('/notifications/mark-all-read'),
-  markRead: (id) => apiClient.patch(/notifications//read),
-  delete: (id) => apiClient.delete(/notifications/),
+  markRead: (id) => apiClient.patch(`/notifications/${id}/read`),
+  delete: (id) => apiClient.delete(`/notifications/${id}`),
 };
