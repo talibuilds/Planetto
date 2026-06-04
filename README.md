@@ -295,5 +295,11 @@ Contributions are always welcome! If you'd like to improve the app:
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
+## 👥 Authors
+- **Talib Khan**
+- **Mayank Mehta**
+- **Muzammil Zahoor**
+- **Mohit Kumar**
+
 ## 📄 License
 Distributed under the MIT License. See `LICENSE` for more information.
