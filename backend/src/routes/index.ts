@@ -6,6 +6,7 @@ import scheduleRoutes from "./schedule.routes";
 import roomRoutes from "./room.routes";
 import adminRoutes from "./admin.routes";
 import notificationRoutes from "./notification.routes";
+import timetableRoutes from "./timetable.routes";
 
 const router = Router();
 
@@ -29,5 +30,7 @@ router.use("/schedules", scheduleRoutes);
 router.use("/rooms", roomRoutes);
 router.use("/admin", adminRoutes);
 router.use("/notifications", notificationRoutes);
+router.use("/timetable", timetableRoutes);
 
 export default router;
+

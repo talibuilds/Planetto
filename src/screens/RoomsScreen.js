@@ -500,7 +500,7 @@ const JoinByCodeModal = ({ visible, onClose, onJoined, colors, isDarkMode }) => 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 const RoomsScreen = () => {
   const { colors, isDarkMode } = useTheme();
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
   const navigation = useNavigation();
 
   const [myRooms, setMyRooms] = useState([]);
@@ -535,7 +535,15 @@ const RoomsScreen = () => {
     } finally { setLoading(false); setRefreshing(false); }
   };
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => {
+    // Wait until auth session is restored before making API calls
+    if (!authLoading && user) {
+      fetchData();
+    } else if (!authLoading && !user) {
+      // Not logged in — stop loading spinner
+      setLoading(false);
+    }
+  }, [authLoading, user]);
 
   const onRefresh = () => { setRefreshing(true); fetchData(); };
 

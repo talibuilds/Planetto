@@ -16,6 +16,7 @@ import RoomsScreen from '../screens/RoomsScreen';
 import MyClassesScreen from '../screens/MyClassesScreen';
 import RoomDetailScreen from '../screens/RoomDetailScreen';
 import AdminPanelScreen from '../screens/AdminPanelScreen';
+import TimetableUploadScreen from '../screens/TimetableUploadScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -100,6 +101,7 @@ const AppNavigator = () => {
       <Stack.Screen name="MyClasses" component={MyClassesScreen} />
       <Stack.Screen name="RoomDetail" component={RoomDetailScreen} />
       <Stack.Screen name="AdminPanel" component={AdminPanelScreen} />
+      <Stack.Screen name="TimetableUpload" component={TimetableUploadScreen} />
     </Stack.Navigator>
   );
 };

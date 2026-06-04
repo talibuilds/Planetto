@@ -51,10 +51,13 @@ export const AuthProvider = ({ children }) => {
         if (storedUser) {
           const u = JSON.parse(storedUser);
           setUser(u);
+          // CRITICAL: must set userId in API client so all requests include x-user-id header
           setApiUserId(u?.id ?? null);
         }
       } catch (e) {
         console.error('Failed to load session', e);
+        // Clear corrupted session data
+        await AsyncStorage.removeItem('@planetto_user').catch(() => {});
       } finally {
         setIsLoading(false);
       }
@@ -101,8 +104,10 @@ export const AuthProvider = ({ children }) => {
         apiClient.post('/auth/google', { idToken: mockToken })
           .then(async (response) => {
             if (response.data.success) {
-              setUser(response.data.data);
-              await AsyncStorage.setItem('@planetto_user', JSON.stringify(response.data.data));
+              const userData = response.data.data;
+              setUser(userData);
+              setApiUserId(userData?.id ?? null);
+              await AsyncStorage.setItem('@planetto_user', JSON.stringify(userData));
               resolve(true);
             } else {
               resolve(false);
@@ -150,8 +155,10 @@ export const AuthProvider = ({ children }) => {
             }
             const apiResponse = await apiClient.post('/auth/google', { idToken });
             if (apiResponse.data.success) {
-              setUser(apiResponse.data.data);
-              await AsyncStorage.setItem('@planetto_user', JSON.stringify(apiResponse.data.data));
+              const userData = apiResponse.data.data;
+              setUser(userData);
+              setApiUserId(userData?.id ?? null);
+              await AsyncStorage.setItem('@planetto_user', JSON.stringify(userData));
               resolve(true);
             } else {
               resolve(false);
@@ -224,8 +231,10 @@ export const AuthProvider = ({ children }) => {
                     const mockToken = 'mock-developer@planetto.space-Developer User-dev12345';
                     const response = await apiClient.post('/auth/google', { idToken: mockToken });
                     if (response.data.success) {
-                      setUser(response.data.data);
-                      await AsyncStorage.setItem('@planetto_user', JSON.stringify(response.data.data));
+                      const userData = response.data.data;
+                      setUser(userData);
+                      setApiUserId(userData?.id ?? null);
+                      await AsyncStorage.setItem('@planetto_user', JSON.stringify(userData));
                       resolve(true);
                     } else {
                       resolve(false);
@@ -250,8 +259,10 @@ export const AuthProvider = ({ children }) => {
       const response = await apiClient.post('/auth/google', { idToken });
       
       if (response.data.success) {
-        setUser(response.data.data);
-        await AsyncStorage.setItem('@planetto_user', JSON.stringify(response.data.data));
+        const userData = response.data.data;
+        setUser(userData);
+        setApiUserId(userData?.id ?? null);
+        await AsyncStorage.setItem('@planetto_user', JSON.stringify(userData));
         return true;
       }
     } catch (error) {
