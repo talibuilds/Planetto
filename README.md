@@ -4,6 +4,42 @@ Planetto is a sleek, highly-polished full-stack React Native mobile application 
 
 Built with Expo on the frontend and Node.js/PostgreSQL on the backend, the app features a premium user interface with dynamic animations, glassmorphic elements, and a tailored UX for maximum productivity.
 
+## System Architecture
+
+The project is structured into a modern full-stack mobile application, connecting an Expo React Native frontend to a TypeScript Express backend using PostgreSQL.
+
+```mermaid
+flowchart TD
+    subgraph Frontend ["Frontend (React Native / Expo)"]
+        UI["UI Components & Screens"]
+        Context["React Context API (State)"]
+        Nav["React Navigation"]
+        Axios["API Client (Axios)"]
+        
+        UI --> Context
+        UI --> Nav
+        Context --> Axios
+    end
+
+    subgraph Backend ["Backend (Node.js + Express / TypeScript)"]
+        Router["Express Routers"]
+        Controllers["Controllers"]
+        Services["Services (Business Logic)"]
+        Prisma["Prisma ORM"]
+        Gemini["Google Gemini AI API"]
+        
+        Router --> Controllers
+        Controllers --> Services
+        Services --> Prisma
+        Services -.-> Gemini
+    end
+
+    DB[(PostgreSQL Database)]
+
+    Axios -- "REST API (HTTP/JSON)" --> Router
+    Prisma --> DB
+```
+
 ## Key Features & Modules
 
 - **AI Timetable Scanner:** Upload a photo of your college timetable, and our backend uses Google's `gemini-2.5-flash-lite` vision-to-text model to instantly parse, structure, and save your classes.
@@ -12,25 +48,7 @@ Built with Expo on the frontend and Node.js/PostgreSQL on the backend, the app f
 - **Collaborative Rooms (Coworking):** Join study groups or classroom pods. Chat in real-time, share resources, start group Pomodoro sessions, and track room streaks.
 - **In-App Notifications:** Real-time push-style notifications and a global navbar inbox for tasks, group invites, and session completions.
 - **Task Management:** Infinite scroll date selection, swipe actions, priority flagging, and robust data synchronization.
-- **Global Statistics:** Productivity trend visualization, focus quality tracking, and session velocity analysis.
 - **Premium UI/UX:** Zero-flicker dark/light transitions, custom avatars, glassmorphic design, and optimized animated renders.
-
----
-
-## Tech Stack
-
-### Frontend (Mobile App)
-- **Framework:** React Native & Expo
-- **Navigation:** React Navigation (Bottom Tabs, Native Stack)
-- **UI & Animations:** `expo-linear-gradient`, `react-native-svg`, React Native `Animated` API
-- **State & Data:** React Context API, Axios, AsyncStorage
-- **Auth:** Google Sign-In (`@react-native-google-signin/google-signin`)
-
-### Backend (API Server)
-- **Framework:** Node.js with Express.js (TypeScript)
-- **Database:** PostgreSQL
-- **ORM:** Prisma
-- **AI Integration:** `@google/generative-ai` (Gemini API)
 
 ---
 
@@ -38,23 +56,112 @@ Built with Expo on the frontend and Node.js/PostgreSQL on the backend, the app f
 
 Our backend Prisma schema is highly relational, designed to support both individual productivity and group collaboration.
 
-### Core Entities
-- **User:** The central entity. Has a unique Google ID, email, profile image, and admin flags.
-- **Task:** A user's personal to-do items. Tracks priority, completion status, due dates, and required Pomodoro sessions.
-- **FocusSession:** Logs individual focus periods, tracking duration in seconds, pauses, and self-rated quality (1-100).
-- **Schedule:** Individual classes parsed by AI, containing subject, teacher, room, type (Theory/Lab), and times.
-- **LoginRecord:** Tracks daily logins for calculating user streaks.
-- **Notification:** Centralized inbox for system events, task assignments, and room alerts.
-
-### Collaborative Entities (Rooms)
-- **Room:** A collaborative workspace (Study Group, Project Room, Classroom) with invite codes, max member caps, and streak tracking.
-- **RoomMember:** Junction table mapping Users to Rooms, defining roles (Admin, Member).
-- **RoomMessage:** Chat history within a room. Supports text, images, files, and threading/replies.
-- **RoomTask:** Shared tasks within a room that can be assigned to specific members.
-- **RoomPomodoroSession:** Group study sessions started by a user, allowing others to join synchronously.
-- **RoomSessionParticipant:** Junction table tracking which users joined a group Pomodoro.
-- **RoomResource:** Shared links, PDFs, or files uploaded to a specific room.
-- **RoomCheckIn:** Daily accountability check-ins logged by members.
+```mermaid
+erDiagram
+    User ||--o{ Task : "has"
+    User ||--o{ FocusSession : "has"
+    User ||--o{ Schedule : "has"
+    User ||--o{ LoginRecord : "has"
+    User ||--o{ Notification : "receives"
+    User ||--o{ RoomMember : "is member of"
+    User ||--o{ Room : "creates/admin"
+    User ||--o{ RoomTask : "creates/assigned"
+    User ||--o{ RoomPomodoroSession : "starts"
+    User ||--o{ RoomSessionParticipant : "participates in"
+    User ||--o{ RoomMessage : "sends"
+    User ||--o{ RoomResource : "uploads"
+    User ||--o{ RoomCheckIn : "checks in"
+    
+    Room ||--o{ RoomMember : "has members"
+    Room ||--o{ RoomTask : "has tasks"
+    Room ||--o{ RoomPomodoroSession : "has sessions"
+    Room ||--o{ RoomMessage : "has messages"
+    Room ||--o{ RoomResource : "has resources"
+    Room ||--o{ RoomCheckIn : "has check-ins"
+    
+    RoomPomodoroSession ||--o{ RoomSessionParticipant : "has participants"
+    RoomMessage ||--o| RoomMessage : "replies to (parent)"
+    
+    User {
+        String id PK
+        String email
+        String name
+        Boolean isAdmin
+    }
+    
+    Task {
+        String id PK
+        String title
+        String subject
+        String priority
+        Boolean isCompleted
+    }
+    
+    FocusSession {
+        String id PK
+        Int duration
+        Int quality
+    }
+    
+    Schedule {
+        String id PK
+        String dayOfWeek
+        String startTime
+        String endTime
+        String subject
+        String type
+    }
+    
+    Notification {
+        String id PK
+        String title
+        String type
+        Boolean isRead
+    }
+    
+    Room {
+        String id PK
+        String name
+        String type
+        String inviteCode
+        Int maxMembers
+    }
+    
+    RoomMember {
+        String id PK
+        String role
+    }
+    
+    RoomTask {
+        String id PK
+        String title
+        String status
+    }
+    
+    RoomPomodoroSession {
+        String id PK
+        Int durationMinutes
+        Boolean isActive
+    }
+    
+    RoomMessage {
+        String id PK
+        String content
+        String type
+    }
+    
+    RoomResource {
+        String id PK
+        String title
+        String type
+        String url
+    }
+    
+    RoomCheckIn {
+        String id PK
+        String date
+    }
+```
 
 ---
 
@@ -108,9 +215,3 @@ cd Planetto # (root directory)
 npm install
 npm run android # Or npm run ios / npm run start
 ```
-
-## Recent Implementations
-
-- **AI OCR Migration:** Upgraded the AI timetable parser from `gemini-1.5-flash` to the significantly faster `gemini-2.5-flash-lite`, dropping processing time from 90s to ~1.2s.
-- **Global Toast Notifications:** Added an animated dropdown notification system that respects the global "Block Notifications" focus toggle.
-- **Zombie Process Fix:** Hardened backend startup to prevent orphaned Node processes from hogging API ports.
