@@ -16,7 +16,7 @@ import AvatarInitials from '../components/AvatarInitials';
 
 const StatsScreen = ({ navigation }) => {
   const { colors, isDarkMode } = useTheme();
-  const { user, updateProfile } = useAuth();
+  const { user, updateProfile, logout } = useAuth();
   const { stats, tasks, formatFocusTime } = useData();
 
   const profileName = user?.name || 'Guest User';
@@ -76,10 +76,12 @@ const StatsScreen = ({ navigation }) => {
   };
 
   const handleBoxClick = (displayDate, count) => {
-    Alert.alert(
-      "Consistent Growth",
-      `${count} activit${count === 1 ? 'y' : 'ies'} recorded on ${displayDate}.`
-    );
+    const msg = `${count} activit${count === 1 ? 'y' : 'ies'} recorded on ${displayDate}.`;
+    if (Platform.OS === 'web') {
+      window.alert(`Consistent Growth: ${msg}`);
+    } else {
+      Alert.alert("Consistent Growth", msg);
+    }
   };
 
   const gridData = getHeatGridData();
@@ -240,7 +242,7 @@ const StatsScreen = ({ navigation }) => {
                   strokeWidth="6" 
                   fill="none" 
                   strokeDasharray="251"
-                  strokeDashoffset="45"
+                  strokeDashoffset={251 - (251 * (stats?.focusQuality || 100) / 100)}
                   strokeLinecap="round"
                   transform="rotate(-90 50 50)"
                 />
@@ -310,7 +312,7 @@ const StatsScreen = ({ navigation }) => {
           <Text style={[FONTS.body1, { color: '#FFF' }]}>Day Streak</Text>
           <Text style={[FONTS.body2, { color: 'rgba(255,255,255,0.7)', marginTop: 5 }]}>Stay consistent to build your streak!</Text>
           <View style={styles.streakProgressBg}>
-             <View style={styles.streakProgressFill} />
+             <View style={[styles.streakProgressFill, { width: `${Math.min(100, ((stats?.dayStreak || 0) / 30) * 100)}%` }]} />
           </View>
         </LinearGradient>
 
@@ -347,7 +349,7 @@ const StatsScreen = ({ navigation }) => {
 
         <TouchableOpacity 
           style={[styles.logoutBtn, { borderColor: colors.danger }]} 
-          onPress={() => navigation.replace('Login')}
+          onPress={async () => { await logout(); navigation.replace('Login'); }}
         >
           <FontAwesome5 name="sign-out-alt" color={colors.danger} size={14} />
           <Text style={[FONTS.subtitle, { color: colors.danger, marginLeft: 10 }]}>LOGOUT SECURELY</Text>

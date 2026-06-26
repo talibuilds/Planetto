@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, Image, Alert, KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -10,16 +10,16 @@ import { useAuth } from '../context/AuthContext';
 
 const logoImage = require('../../assets/logo.png');
 
-const InputField = ({ label, value, onChangeText, placeholder, secure, keyboardType, error, icon, onToggleSecure, showPassword, colors }) => (
-  <View style={styles.inputContainer}>
+const InputField = ({ label, value, onChangeText, placeholder, secure, keyboardType, error, icon, onToggleSecure, showPassword, colors, compact }) => (
+  <View style={compact ? styles.inputContainerCompact : styles.inputContainer}>
     <Text style={[styles.label, { color: colors.textSecondary }]}>{label}</Text>
-    <View style={[styles.inputWrapper, {
+    <View style={[compact ? styles.inputWrapperCompact : styles.inputWrapper, {
       backgroundColor: colors.surface,
       borderColor: error ? colors.danger : colors.surfaceBorder,
     }]}>
-      <FontAwesome5 name={icon} size={14} color={error ? colors.danger : colors.textMuted} style={{ marginRight: 12 }} />
+      <FontAwesome5 name={icon} size={compact ? 12 : 14} color={error ? colors.danger : colors.textMuted} style={{ marginRight: 10 }} />
       <TextInput
-        style={[styles.inputInner, { color: colors.text, flex: 1 }]}
+        style={[styles.inputInner, { color: colors.text, flex: 1, fontSize: compact ? 13 : 14 }]}
         placeholder={placeholder}
         placeholderTextColor={colors.textMuted}
         value={value}
@@ -30,7 +30,7 @@ const InputField = ({ label, value, onChangeText, placeholder, secure, keyboardT
       />
       {onToggleSecure && (
         <TouchableOpacity onPress={onToggleSecure}>
-          <FontAwesome5 name={showPassword ? 'eye-slash' : 'eye'} size={14} color={colors.textMuted} />
+          <FontAwesome5 name={showPassword ? 'eye-slash' : 'eye'} size={compact ? 12 : 14} color={colors.textMuted} />
         </TouchableOpacity>
       )}
     </View>
@@ -55,6 +55,31 @@ const LoginScreen = ({ navigation }) => {
   const [signupEmail, setSignupEmail] = useState('');
   const [signupPassword, setSignupPassword] = useState('');
   const [signupConfirm, setSignupConfirm] = useState('');
+  const autoSubmitTimer = useRef(null);
+
+  // ─── Auto-submit signup when all fields are filled ───────────────────────
+  useEffect(() => {
+    if (mode !== 'signup') return;
+    // Clear any pending auto-submit
+    if (autoSubmitTimer.current) clearTimeout(autoSubmitTimer.current);
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const allFilled = signupName.trim().length > 0
+      && emailRegex.test(signupEmail.trim())
+      && signupPassword.length >= 6
+      && signupConfirm.length >= 6
+      && signupConfirm === signupPassword;
+
+    if (allFilled && !isLoading) {
+      autoSubmitTimer.current = setTimeout(() => {
+        handleSignup();
+      }, 1200); // 1.2s delay so user can see what happened
+    }
+
+    return () => {
+      if (autoSubmitTimer.current) clearTimeout(autoSubmitTimer.current);
+    };
+  }, [signupName, signupEmail, signupPassword, signupConfirm, mode]);
 
   const validate = () => {
     const errs = {};
@@ -118,10 +143,18 @@ const LoginScreen = ({ navigation }) => {
 
   const handleForgotPassword = () => {
     if (!email.trim()) {
-      Alert.alert('Enter Your Email', 'Type your email address above, then tap "Forgot Password" to receive a reset link.');
+      if (Platform.OS === 'web') {
+        window.alert('Enter Your Email: Type your email address above, then tap "Forgot Password" to receive a reset link.');
+      } else {
+        Alert.alert('Enter Your Email', 'Type your email address above, then tap "Forgot Password" to receive a reset link.');
+      }
       return;
     }
-    Alert.alert('Reset Link Sent', `A password reset link has been sent to ${email}. Check your inbox.`);
+    if (Platform.OS === 'web') {
+      window.alert(`Reset Link Sent: A password reset link has been sent to ${email}. Check your inbox.`);
+    } else {
+      Alert.alert('Reset Link Sent', `A password reset link has been sent to ${email}. Check your inbox.`);
+    }
   };
 
 
@@ -130,17 +163,18 @@ const LoginScreen = ({ navigation }) => {
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <KeyboardAvoidingView 
         style={{ flex: 1 }} 
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'padding'} 
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 30}
       >
         <ScrollView 
           style={{ flex: 1 }} 
           contentContainerStyle={[
             styles.scrollContent, 
-            mode === 'signup' && { paddingVertical: 12, paddingBottom: 400 }
+            mode === 'signup' && styles.scrollContentSignup
           ]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
+          bounces={true}
         >
 
           {/* Logo - only show in login mode to save vertical space */}
@@ -228,8 +262,8 @@ const LoginScreen = ({ navigation }) => {
             </>
           ) : (
             <>
-              <Text style={[styles.title, { color: colors.text }]}>Sign Up</Text>
-              <Text style={[styles.subtitle, { color: colors.textMuted }]}>Create your account.</Text>
+              <Text style={[styles.title, { color: colors.text, fontSize: 20, marginBottom: 2 }]}>Sign Up</Text>
+              <Text style={[styles.subtitle, { color: colors.textMuted, marginBottom: 10, fontSize: 12 }]}>Create your account.</Text>
 
               <InputField
                 label="FULL NAME"
@@ -242,6 +276,7 @@ const LoginScreen = ({ navigation }) => {
                 error={errors.signupName}
                 icon="user"
                 colors={colors}
+                compact
               />
               <InputField
                 label="EMAIL ADDRESS"
@@ -255,6 +290,7 @@ const LoginScreen = ({ navigation }) => {
                 error={errors.signupEmail}
                 icon="envelope"
                 colors={colors}
+                compact
               />
               <InputField
                 label="PASSWORD"
@@ -270,6 +306,7 @@ const LoginScreen = ({ navigation }) => {
                 onToggleSecure={() => setShowPassword(!showPassword)}
                 showPassword={showPassword}
                 colors={colors}
+                compact
               />
               <InputField
                 label="CONFIRM PASSWORD"
@@ -283,10 +320,11 @@ const LoginScreen = ({ navigation }) => {
                 error={errors.signupConfirm}
                 icon="lock"
                 colors={colors}
+                compact
               />
 
-              <TouchableOpacity style={styles.loginBtn} onPress={handleSignup} disabled={isLoading}>
-                <LinearGradient colors={colors.gradientPrimary} style={styles.loginBtnGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
+              <TouchableOpacity style={styles.signupBtn} onPress={handleSignup} disabled={isLoading}>
+                <LinearGradient colors={colors.gradientPrimary} style={styles.signupBtnGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
                   {isLoading ? (
                     <ActivityIndicator color="#FFF" />
                   ) : (
@@ -294,10 +332,15 @@ const LoginScreen = ({ navigation }) => {
                   )}
                 </LinearGradient>
               </TouchableOpacity>
+
+              {/* Auto-submit hint */}
+              <Text style={{ color: colors.textMuted, fontSize: 10, textAlign: 'center', marginTop: 4, fontStyle: 'italic' }}>
+                Auto-submits when all fields are valid ✓
+              </Text>
             </>
           )}
 
-          <View style={{ height: 120 }} />
+          <View style={{ height: 30 }} />
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -306,13 +349,15 @@ const LoginScreen = ({ navigation }) => {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  scrollContent: { flexGrow: 1, padding: 28 },
+  scrollContent: { flexGrow: 1, padding: 24 },
+  scrollContentSignup: { flexGrow: 0, paddingVertical: 8, paddingHorizontal: 20, paddingBottom: 40 },
   logoContainer: { alignItems: 'center', marginTop: 10, marginBottom: 20 },
-  modeTabs: { flexDirection: 'row', borderRadius: 14, borderWidth: 1, padding: 4, marginBottom: 28 },
+  modeTabs: { flexDirection: 'row', borderRadius: 14, borderWidth: 1, padding: 4, marginBottom: 20 },
   modeTab: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 11 },
-  title: { ...FONTS.h2, fontSize: 24, marginBottom: 6 },
-  subtitle: { ...FONTS.body1, marginBottom: 28 },
-  inputContainer: { marginBottom: 18 },
+  title: { ...FONTS.h2, fontSize: 24, marginBottom: 4 },
+  subtitle: { ...FONTS.body1, marginBottom: 16 },
+  inputContainer: { marginBottom: 14 },
+  inputContainerCompact: { marginBottom: 8 },
   label: { ...FONTS.subtitle, marginBottom: 8, fontSize: 10 },
   inputWrapper: {
     flexDirection: 'row',
@@ -322,10 +367,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 14,
   },
+  inputWrapperCompact: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
   inputInner: { ...FONTS.body1, fontSize: 14 },
   errorText: { ...FONTS.body2, fontSize: 11, marginTop: 5, marginLeft: 2 },
   loginBtn: { marginTop: 10, borderRadius: 16, overflow: 'hidden', marginBottom: 16 },
   loginBtnGradient: { paddingVertical: 18, alignItems: 'center', justifyContent: 'center', minHeight: 56 },
+  signupBtn: { marginTop: 6, borderRadius: 14, overflow: 'hidden', marginBottom: 8 },
+  signupBtnGradient: { paddingVertical: 14, alignItems: 'center', justifyContent: 'center', minHeight: 44 },
   loginBtnText: { ...FONTS.subtitle, fontSize: 13, letterSpacing: 1.5 },
   demoBtn: {
     flexDirection: 'row',

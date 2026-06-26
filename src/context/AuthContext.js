@@ -278,6 +278,7 @@ export const AuthProvider = ({ children }) => {
   const logout = async () => {
     try {
       setUser(null);
+      setApiUserId(null);
       await AsyncStorage.removeItem('@planetto_user');
       if (!isWeb && GoogleSignin) {
         const isSignedIn = await GoogleSignin.isSignedIn();

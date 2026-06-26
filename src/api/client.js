@@ -2,26 +2,23 @@ import axios from 'axios';
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 
-// Dynamically resolve backend URL.
-// On Android emulators, 10.0.2.2 always maps to the host machine's localhost.
-// On physical devices, we derive the host IP from Metro's hostUri (both Metro
-// and the backend must be reachable at the same IP in that case).
+// ─── API Configuration ───────────────────────────────────────────────
+// Set your Dev Tunnel URL here to access the backend from your physical device APK.
+const DEV_TUNNEL_URL = 'https://k9hbpmb2-5000.inc1.devtunnels.ms/'; // Replace with your active tunnel URL
+
 const getBaseUrl = () => {
-  if (__DEV__) {
-    // Android emulator: always use the loopback alias — the backend runs on host localhost
-    if (Platform.OS === 'android') {
-      return 'http://10.0.2.2:5000/api';
-    }
-    // iOS simulator / physical device: derive from Metro hostUri
-    const hostUri = Constants.expoConfig?.hostUri;
-    if (hostUri) {
-      const ip = hostUri.split(':')[0];
-      return `http://${ip}:5000/api`;
-    }
-    return 'http://localhost:5000/api';
+  // 1. Physical Device (APK installed on your phone)
+  if (Constants.isDevice) {
+    return DEV_TUNNEL_URL || 'https://api.planetto.space/api';
   }
-  // Production URL
-  return 'https://api.planetto.app/api';
+
+  // 2. Android Emulator (uses 10.0.2.2 to access host's localhost)
+  if (Platform.OS === 'android') {
+    return 'http://10.0.2.2:5000/api';
+  }
+
+  // 3. Fallback (Web / iOS Simulator)
+  return 'http://127.0.0.1:5000/api';
 };
 
 export const apiClient = axios.create({
