@@ -40,6 +40,7 @@ export const AuthProvider = ({ children }) => {
       GoogleSignin.configure({
         webClientId: GOOGLE_WEB_CLIENT_ID,
         iosClientId: '548910505461-qhvf50ncsh5i7ana0mhiqe3lsbmdng5k.apps.googleusercontent.com',
+        androidClientId: '548910505461-btmf8s3sem5k8k4u046aq5vfa6b2g1t8.apps.googleusercontent.com',
         offlineAccess: true,
       });
     }
