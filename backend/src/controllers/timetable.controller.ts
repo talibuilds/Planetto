@@ -6,13 +6,14 @@ import { asyncHandler } from "../utils";
 // ─── Multer config (kept for legacy image upload) ───────────────────────────────
 export const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024 },
+  limits: { fileSize: 15 * 1024 * 1024 }, // increased to 15MB just in case
   fileFilter: (_req, file, cb) => {
-    const allowed = ["image/jpeg", "image/png", "image/webp", "application/pdf"];
+    // Vercel FormData blobs sometimes come as application/octet-stream
+    const allowed = ["image/jpeg", "image/png", "image/webp", "application/pdf", "application/octet-stream"];
     if (allowed.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error("Only JPG, PNG, WEBP, or PDF files are accepted."));
+      cb(new Error("Invalid file type: " + file.mimetype));
     }
   },
 });

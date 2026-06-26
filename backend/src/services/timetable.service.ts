@@ -118,11 +118,15 @@ export const timetableService = {
     imageBuffer: Buffer,
     mimeType: string
   ): Promise<ParsedScheduleEntry[]> => {
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" }); // Using 1.5-flash to be safe with older SDK versions
+    
+    // Gemini rejects application/octet-stream, force it to jpeg
+    const safeMimeType = mimeType === 'application/octet-stream' ? 'image/jpeg' : mimeType;
+    
     const imagePart = {
       inlineData: {
         data: imageBuffer.toString("base64"),
-        mimeType: mimeType,
+        mimeType: safeMimeType,
       },
     };
     const result = await model.generateContent([TEXT_PARSE_PROMPT, imagePart]);
