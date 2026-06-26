@@ -2,23 +2,12 @@ import axios from 'axios';
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 
-// ─── API Configuration ───────────────────────────────────────────────
-// Set your Dev Tunnel URL here to access the backend from your physical device APK.
-const DEV_TUNNEL_URL = 'https://k9hbpmb2-5000.inc1.devtunnels.ms/'; // Replace with your active tunnel URL
+// Set the production URL for the backend deployed on Render
+const PRODUCTION_URL = 'https://planetto-backend.onrender.com/api';
 
 const getBaseUrl = () => {
-  // 1. Physical Device (APK installed on your phone)
-  if (Constants.isDevice) {
-    return DEV_TUNNEL_URL || 'https://api.planetto.space/api';
-  }
-
-  // 2. Android Emulator (uses 10.0.2.2 to access host's localhost)
-  if (Platform.OS === 'android') {
-    return 'http://10.0.2.2:5000/api';
-  }
-
-  // 3. Fallback (Web / iOS Simulator)
-  return 'http://127.0.0.1:5000/api';
+  // Always use the live production server for Web (Vercel) and the APK
+  return PRODUCTION_URL;
 };
 
 export const apiClient = axios.create({
