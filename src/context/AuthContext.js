@@ -99,28 +99,6 @@ export const AuthProvider = ({ children }) => {
   // ─── Google Sign-In for WEB ─────────────────────────────────────────
   const googleLoginWeb = () => {
     return new Promise((resolve) => {
-      if (window.confirm('Would you like to simulate Google Login for development? (Select Cancel to use real Google Sign-In)')) {
-        const mockToken = 'mock-developer@planetto.space-Developer User-dev12345';
-        apiClient.post('/auth/google', { idToken: mockToken })
-          .then(async (response) => {
-            if (response.data.success) {
-              const userData = response.data.data;
-              setUser(userData);
-              setApiUserId(userData?.id ?? null);
-              await AsyncStorage.setItem('@planetto_user', JSON.stringify(userData));
-              resolve(true);
-            } else {
-              resolve(false);
-            }
-          })
-          .catch((err) => {
-            console.error('Mock Google login error:', err);
-            showAlert('Mock Login Failed', err.response?.data?.message || 'Network error');
-            resolve(false);
-          });
-        return;
-      }
-
       // Load the Google Identity Services script dynamically
       if (document.getElementById('google-gsi-script')) {
         triggerGooglePrompt(resolve);
@@ -214,41 +192,8 @@ export const AuthProvider = ({ children }) => {
   const googleLoginNative = async () => {
     try {
       if (!GoogleSignin) {
-        return new Promise((resolve) => {
-          Alert.alert(
-            'Native Build Required',
-            'Google Sign-In requires a native build. Would you like to simulate Google Login for development?',
-            [
-              {
-                text: 'Cancel',
-                onPress: () => resolve(false),
-                style: 'cancel',
-              },
-              {
-                text: 'Simulate',
-                onPress: async () => {
-                  try {
-                    const mockToken = 'mock-developer@planetto.space-Developer User-dev12345';
-                    const response = await apiClient.post('/auth/google', { idToken: mockToken });
-                    if (response.data.success) {
-                      const userData = response.data.data;
-                      setUser(userData);
-                      setApiUserId(userData?.id ?? null);
-                      await AsyncStorage.setItem('@planetto_user', JSON.stringify(userData));
-                      resolve(true);
-                    } else {
-                      resolve(false);
-                    }
-                  } catch (err) {
-                    console.error('Mock Google login error:', err);
-                    showAlert('Mock Login Failed', err.response?.data?.message || 'Network error');
-                    resolve(false);
-                  }
-                },
-              },
-            ]
-          );
-        });
+        showAlert('Native Build Required', 'Google Sign-In requires a native build.');
+        return false;
       }
       await GoogleSignin.hasPlayServices();
       const userInfo = await GoogleSignin.signIn();
