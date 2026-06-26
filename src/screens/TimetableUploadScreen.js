@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
-  ActivityIndicator, Alert, TextInput
+  ActivityIndicator, Alert, TextInput, Platform
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
@@ -153,8 +153,6 @@ const TimetableUploadScreen = () => {
       Alert.alert('Error', 'Failed to pick file');
     }
   };
-
-import { Platform } from 'react-native';
 
   // ─── CORE: Process image with on-device ML Kit OCR, then send text to AI ──
   const processImage = async (imageUri) => {
