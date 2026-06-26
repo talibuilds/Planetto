@@ -174,7 +174,7 @@ const TimetableUploadScreen = () => {
           headers: {
             'Content-Type': 'multipart/form-data',
           },
-          timeout: 60000, // Image upload takes a bit longer
+          timeout: 120000, // 2 minutes: Image upload + Render spin up + AI processing
         });
 
         if (apiResponse.data.success && apiResponse.data.data.length > 0) {
