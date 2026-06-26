@@ -154,11 +154,54 @@ const TimetableUploadScreen = () => {
     }
   };
 
+import { Platform } from 'react-native';
+
   // ─── CORE: Process image with on-device ML Kit OCR, then send text to AI ──
   const processImage = async (imageUri) => {
     setError(null);
 
-    // STEP 1: On-device OCR (instant, ~1-2 seconds)
+    if (Platform.OS === 'web') {
+      // WEB FALLBACK: Send image directly to backend since ML Kit is native-only
+      setPhase('parsing');
+      setStatusMsg('AI is analyzing your timetable image directly (Web Mode)...');
+
+      try {
+        const response = await fetch(imageUri);
+        const blob = await response.blob();
+        
+        const formData = new FormData();
+        formData.append('timetable', blob, 'timetable.jpg');
+
+        const apiResponse = await apiClient.post('/timetable/parse', formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+          timeout: 60000, // Image upload takes a bit longer
+        });
+
+        if (apiResponse.data.success && apiResponse.data.data.length > 0) {
+          const entries = apiResponse.data.data;
+          entries.sort((a, b) => {
+            const di = DAY_ORDER.indexOf(a.dayOfWeek) - DAY_ORDER.indexOf(b.dayOfWeek);
+            if (di !== 0) return di;
+            return a.startTime.localeCompare(b.startTime);
+          });
+          setParsedEntries(entries);
+          setPhase('preview');
+        } else {
+          setError('AI could not find classes in the image. Try a clearer image.');
+          setPhase('upload');
+        }
+      } catch (e) {
+        console.error('Web AI parse error:', e);
+        const msg = e.response?.data?.error || e.message || 'Failed to parse timetable image';
+        setError(msg);
+        setPhase('upload');
+      }
+      return; // Exit here for web
+    }
+
+    // STEP 1: On-device OCR (instant, ~1-2 seconds) - ONLY FOR NATIVE
     setPhase('ocr');
     setStatusMsg('Extracting text from image...');
 

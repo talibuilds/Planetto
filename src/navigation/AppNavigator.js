@@ -93,15 +93,32 @@ const MainApp = () => {
   );
 };
 
+import { useAuth } from '../context/AuthContext';
+
 const AppNavigator = () => {
+  const { user, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#000' }}>
+        {/* Simple loading indicator while AsyncStorage loads */}
+      </View>
+    );
+  }
+
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="Login" component={LoginScreen} />
-      <Stack.Screen name="MainApp" component={MainApp} />
-      <Stack.Screen name="MyClasses" component={MyClassesScreen} />
-      <Stack.Screen name="RoomDetail" component={RoomDetailScreen} />
-      <Stack.Screen name="AdminPanel" component={AdminPanelScreen} />
-      <Stack.Screen name="TimetableUpload" component={TimetableUploadScreen} />
+      {!user ? (
+        <Stack.Screen name="Login" component={LoginScreen} />
+      ) : (
+        <>
+          <Stack.Screen name="MainApp" component={MainApp} />
+          <Stack.Screen name="MyClasses" component={MyClassesScreen} />
+          <Stack.Screen name="RoomDetail" component={RoomDetailScreen} />
+          <Stack.Screen name="AdminPanel" component={AdminPanelScreen} />
+          <Stack.Screen name="TimetableUpload" component={TimetableUploadScreen} />
+        </>
+      )}
     </Stack.Navigator>
   );
 };
