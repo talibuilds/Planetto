@@ -13,7 +13,10 @@ Built with Expo on the frontend and Node.js/PostgreSQL on the backend, the app f
 ## 🌍 Live Demos & Downloads
 
 - **📱 Android APK Download:** [Download Planetto App (EAS Build)](https://expo.dev/accounts/talibuilds/projects/Planetto/builds/d9c526cd-7eca-46df-9ef2-d1c188160616)
-  *Install this APK directly on your Android device to test the full mobile experience including native Google Sign-in!*
+  
+  <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://expo.dev/accounts/talibuilds/projects/Planetto/builds/d9c526cd-7eca-46df-9ef2-d1c188160616" width="150" height="150" alt="Scan to Download APK">
+  
+  *Scan the QR code or click the link to install the APK directly on your Android device to test the full mobile experience including native Google Sign-in!*
 - **🌐 Web Demo:** [planetto.vercel.app](https://planetto.vercel.app/)
   *The React Native Web version of the app, instantly accessible in your browser.*
 - **⚙️ Backend API:** Hosted on Render (`planetto-backend.onrender.com`) connected to a Neon PostgreSQL Database.
