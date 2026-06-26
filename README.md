@@ -10,6 +10,14 @@ Planetto is a sleek, highly-polished full-stack React Native mobile application 
 
 Built with Expo on the frontend and Node.js/PostgreSQL on the backend, the app features a premium user interface with dynamic animations, glassmorphic elements, and a tailored UX for maximum productivity.
 
+## 🌍 Live Demos & Downloads
+
+- **📱 Android APK Download:** [Download Planetto App (EAS Build)](https://expo.dev/accounts/talibuilds/projects/Planetto/builds/d9c526cd-7eca-46df-9ef2-d1c188160616)
+  *Install this APK directly on your Android device to test the full mobile experience including native Google Sign-in!*
+- **🌐 Web Demo:** [planetto.vercel.app](https://planetto.vercel.app/)
+  *The React Native Web version of the app, instantly accessible in your browser.*
+- **⚙️ Backend API:** Hosted on Render (`planetto-backend.onrender.com`) connected to a Neon PostgreSQL Database.
+
 ## ✨ Key Features & Modules
 
 - **AI Timetable Scanner:** Upload a photo of your college timetable, and our backend uses Google's `gemini-2.5-flash-lite` vision-to-text model to instantly parse, structure, and save your classes.
